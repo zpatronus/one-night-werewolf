@@ -18,6 +18,8 @@ backend/db.sqlite3
 
 # dev marker: 60s phase-1 on this machine
 backend/is-dev-machine
+# collectstatic output (served by nginx on the server)
+backend/staticfiles/
 
 # Python
 __pycache__/

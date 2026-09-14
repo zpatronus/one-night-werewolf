@@ -113,7 +113,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
-STATIC_URL = 'static/'
+# Admin static is served by nginx under the /onw/ prefix (NOT the main
+# site's /static/), so give it its own non-colliding path and a collectstatic
+# root below the backend dir.
+STATIC_URL = '/onw/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 
 # Email
