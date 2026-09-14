@@ -13,10 +13,16 @@ const value = computed({
 })
 
 function openPicker() {
+  if (show.value) return
   show.value = true
+  // Native <dialog> modal — floats above the page in the top layer, centered,
+  // with a dimming backdrop. (Bare `open` instead renders it inline in flow.)
+  requestAnimationFrame(() => dialogEl.value?.showModal())
 }
 function closePicker() {
+  if (!show.value) return
   show.value = false
+  dialogEl.value?.close()
 }
 function chooseAvatar(file) {
   value.value = file
@@ -46,9 +52,7 @@ function dismissBackdrop(event) {
       <button type="button" @click="randomize">随机头像</button>
     </div>
     <dialog
-      v-if="show"
       ref="dialogEl"
-      open
       class="avatar-dialog"
       aria-labelledby="avatar-dialog-title"
       @click="dismissBackdrop"
@@ -78,5 +82,22 @@ function dismissBackdrop(event) {
 
 <style scoped>
 .avatar-title { margin-top: 14px; }
-.avatar-dialog { width: 420px; }
+</style>
+
+<style>
+/* Modal look for the floating avatar picker. `::backdrop` cannot be scoped,
+   and the native <dialog> sits in the browser's top layer, so these live here. */
+.avatar-dialog {
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  padding: 18px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #1a2029;           /* solid, opaque — keeps avatars easy to see */
+  color: var(--text);
+  margin: auto;
+}
+.avatar-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
 </style>

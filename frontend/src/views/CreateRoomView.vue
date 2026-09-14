@@ -75,7 +75,7 @@ async function submit() {
     <ul class="tips">
       <li>不要使用常用密码，建议点击“随机”。</li>
       <li>玩家密码不是房间密码，网站不存在房间密码。</li>
-      <li>密码会明文保存在本地，刷新后自动填入，防止同房间他人窥探你的身份。</li>
+      <li>建议随机输入，密码会明文保存在本地，刷新后自动填入，防止同房间他人窥探你的身份。</li>
     </ul>
     <button class="btn-primary btn-block" :disabled="!canSave || busy" @click="submit">
       {{ busy ? '创建中…' : '创建房间' }}

@@ -549,8 +549,8 @@ dialog::backdrop {
   flex-shrink: 0;
   padding: 0;
   margin: 0;
-  width: 66px;
-  height: 66px;
+  width: 82px;
+  height: 82px;
   border-radius: 8px;
   border: 2px solid rgba(255, 255, 255, 0.08);
   cursor: pointer;

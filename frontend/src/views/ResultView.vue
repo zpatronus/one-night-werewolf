@@ -71,7 +71,9 @@ function opSentence(op) {
   }
 }
 
-// Horizontal vote bars, tallest first, width proportional to the top count.
+// Horizontal vote bars, most-voted target first. The left label column is a
+// fixed width, so every track is the same length; only the fill is sized
+// proportionally to the vote count (pct of the top count).
 const voteChart = computed(() => {
   const entries = Object.entries(data.value?.votes || {}).map(([target, count]) => ({ target, count }))
   const max = Math.max(0, ...entries.map((e) => e.count))
@@ -113,7 +115,7 @@ const voteChart = computed(() => {
     </div>
 
     <!-- 投票柱状图：横向条，长度按得票数比例 -->
-    <div class="container">
+    <div class="container vote-section">
       <div class="subtitle">投票分布</div>
       <div v-if="voteChart.length" class="vote-chart">
         <div v-for="e in voteChart" :key="e.target" class="vote-bar-row">
@@ -134,12 +136,14 @@ const voteChart = computed(() => {
       <p v-else class="muted">全部弃权，无人被投。</p>
       <div class="vote-details">
         <div v-for="p in players" :key="'v' + p.userid" class="vote-detail-row">
-          <img class="vote-detail-avatar" :src="avatarUrl(p.avatar)" :alt="p.userid" />
-          <span class="vote-detail-user">{{ p.userid }}</span>
+          <span class="vote-detail-bubble" :class="targetFaction(p.userid)">
+            <img class="vote-detail-avatar small" :src="avatarUrl(p.avatar)" :alt="p.userid" />
+            <span class="vote-detail-user">{{ p.userid }}</span>
+          </span>
           <span class="vote-detail-arrow">→</span>
           <span
             v-if="p.vote_target"
-            class="vote-detail-target"
+            class="vote-detail-bubble"
             :class="targetFaction(p.vote_target)"
           >
             <img
@@ -147,7 +151,7 @@ const voteChart = computed(() => {
               :src="avatarUrl(avatarMap[p.vote_target])"
               :alt="p.vote_target"
             />
-            <span class="vote-detail-target-user">{{ p.vote_target }}</span>
+            <span class="vote-detail-user">{{ p.vote_target }}</span>
           </span>
           <span v-else class="vote-detail-abstain">弃权</span>
         </div>
@@ -165,13 +169,19 @@ const voteChart = computed(() => {
           :class="p.won ? 'win' : 'lose'"
         >
           <img class="transition-avatar" :src="avatarUrl(p.avatar)" :alt="p.userid" />
-          <span class="transition-user">{{ p.userid }}</span>
-          <span class="transition-role">{{ roleIcon(p.role) }} {{ roleName(p.role) }}</span>
-          <span class="transition-arrow">→</span>
-          <span class="transition-role">{{ roleIcon(p.final_role) }} {{ roleName(p.final_role) }}</span>
-          <span class="transition-verdict" :class="p.won ? 'win' : 'lose'">
-            {{ p.won ? '胜' : '负' }}
-          </span>
+          <div class="transition-main">
+            <div class="transition-top">
+              <span class="transition-user">{{ p.userid }}</span>
+              <span class="transition-verdict" :class="p.won ? 'win' : 'lose'">
+                {{ p.won ? '胜' : '负' }}
+              </span>
+            </div>
+            <div class="transition-change">
+              <span class="role-chip">{{ roleIcon(p.role) }} {{ roleName(p.role) }}</span>
+              <span class="transition-arrow">→</span>
+              <span class="role-chip">{{ roleIcon(p.final_role) }} {{ roleName(p.final_role) }}</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -231,7 +241,8 @@ const voteChart = computed(() => {
 
 .transition-list { display: flex; flex-direction: column; gap: 8px; }
 .transition-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 40px 1fr;
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
@@ -241,16 +252,40 @@ const voteChart = computed(() => {
 }
 .transition-row.win { border-color: rgba(46, 204, 113, 0.45); }
 .transition-row.lose { border-color: rgba(231, 76, 60, 0.45); }
-.transition-avatar { width: 34px; height: 34px; border-radius: 50%; }
-.transition-user { font-weight: 700; color: var(--text); min-width: 40px; }
+.transition-avatar { width: 40px; height: 40px; border-radius: 50%; }
+.transition-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.transition-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.transition-user { font-weight: 700; color: var(--text); }
+.transition-change {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.role-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(229, 189, 84, 0.08);
+  border: 1px solid rgba(229, 189, 84, 0.25);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
 .transition-arrow { color: var(--text-dim); }
-.transition-role { color: var(--text); font-size: 0.92rem; white-space: nowrap; }
 .transition-verdict {
-  margin-left: auto;
   font-weight: 800;
-  font-size: 0.95rem;
+  font-size: 1rem;
   min-width: 24px;
-  text-align: center;
+  text-align: right;
 }
 .transition-verdict.win { color: #2ecc71; }
 .transition-verdict.lose { color: #e74c3c; }
@@ -280,6 +315,11 @@ const voteChart = computed(() => {
 .ops-text { font-size: 0.92rem; color: var(--text); line-height: 1.6; }
 
 /* 投票分布柱状图 */
+.vote-section {
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
 .vote-chart { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 .vote-bar-row {
   display: flex;
@@ -287,14 +327,16 @@ const voteChart = computed(() => {
   gap: 10px;
 }
 .vote-target {
+  /* fixed width so every bar track starts at the same x and has equal length,
+     regardless of how long a username / role name happens to be */
   flex: none;
+  width: 130px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1px;
   font-weight: 700;
   color: var(--text);
-  min-width: 44px;
   text-align: center;
   line-height: 1.15;
 }
@@ -317,6 +359,7 @@ const voteChart = computed(() => {
 }
 .vote-bar-fill {
   position: absolute;
+  /* left-anchored; width set inline proportionally to the vote count */
   inset: 0 auto 0 0;
   height: 100%;
   border-radius: 3px;
@@ -333,21 +376,18 @@ const voteChart = computed(() => {
   text-align: right;
 }
 
-/* 谁投了谁：头像行，网格排列以利用横向空间（屏宽够时每行放两个） */
+/* 谁投了谁：头像行，居中排列，换行排布以利用横向空间 */
 .vote-details {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px 20px;
 }
+/* 每行只是纯文本/头像排列，不套卡片框，避免视觉上太碎 */
 .vote-detail-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  min-width: 0;
+  gap: 6px;
 }
 .vote-detail-avatar {
   width: 26px;
@@ -356,26 +396,25 @@ const voteChart = computed(() => {
   flex: none;
 }
 .vote-detail-avatar.small { width: 20px; height: 20px; }
-.vote-detail-user { font-weight: 700; color: var(--text); min-width: 30px; }
-.vote-detail-arrow { color: var(--text-dim); }
-.vote-detail-target {
+.vote-detail-bubble {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 3px 10px 3px 5px;
   border-radius: 999px;
-  background: var(--surface-2);
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border);
 }
-.vote-detail-target.good {
+.vote-detail-bubble.good {
   background: rgba(69, 183, 245, 0.10);
   border-color: rgba(69, 183, 245, 0.35);
 }
-.vote-detail-target.evil {
+.vote-detail-bubble.evil {
   background: rgba(255, 139, 69, 0.12);
   border-color: rgba(255, 139, 69, 0.45);
 }
-.vote-detail-target-user { font-weight: 600; color: var(--text); }
+.vote-detail-user { font-weight: 700; color: var(--text); white-space: nowrap; }
+.vote-detail-arrow { color: var(--text-dim); }
 .vote-detail-abstain {
   padding: 3px 12px;
   border-radius: 999px;
