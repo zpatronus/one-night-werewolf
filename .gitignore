@@ -34,3 +34,6 @@ frontend/.vite/
 .DS_Store
 
 .vscode
+
+/frontend-dist
+/deploy-frontend.sh
