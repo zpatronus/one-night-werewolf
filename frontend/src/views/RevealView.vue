@@ -1,6 +1,5 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { post } from '../api'
 import { creds } from '../store'
 import { useRoomState } from '../useRoomState'
@@ -8,19 +7,31 @@ import { roleName, roleIcon, errorText } from '../gameConfig'
 import { avatarUrl } from '../avatar'
 import { sortPlayers } from '../playerOrder'
 
-const router = useRouter()
-const { state, poll } = useRoomState()   // polls + routes to /result when voting ends
+const { state, poll, applyState } = useRoomState()   // polls + routes to /result when voting ends
 const me = ref(null)               // one-shot POST /reveal body
 const err = ref('')
+const busy = ref(false)
+const loading = ref(false)
 const target = ref('')             // "" = abstain
 
-onMounted(async () => {
-  const res = await post('reveal', creds())
-  if (!res.ok) { err.value = errorText(res.error); return }
-  me.value = res
-})
+async function loadReveal() {
+  if (loading.value) return
+  loading.value = true
+  err.value = ''
+  try {
+    const snapshot = await poll()
+    if (!snapshot || snapshot.phase !== 'reveal') {
+      if (!snapshot) err.value = errorText('network_error')
+      return
+    }
+    const res = await post('reveal', creds())
+    if (!res.ok) { err.value = errorText(res.error); return }
+    me.value = res
+  } finally { loading.value = false }
+}
+onMounted(loadReveal)
 
-const users = computed(() => sortPlayers(creds().roomid, me.value?.users || []))
+const users = computed(() => sortPlayers(creds().roomid, (me.value?.users || []).filter(u => u.userid !== creds().userid)))
 const voted = computed(() => state.value?.voted ?? me.value?.voted)
 
 function pick(u) {
@@ -56,7 +67,7 @@ function describe() {
       }
       return `你是预言家。你选择窥视 ${info.target} 的身份，他的牌是 ${peek(info.peeked?.[0])}。`
     case 'robber':
-      return `你是强盗。你选择与 ${info.target} 交换身份，你现在拿着的牌是 ${peek(info.new_role)}。`
+      return `你是强盗。你选择与 ${info.target} 交换身份，交换完成当时看到的牌是 ${peek(info.new_role)}。`
     case 'troublemaker':
       return `你是捣蛋鬼。你选择交换 ${info.target} 与 ${info.target2} 的牌。`
     case 'insomniac':
@@ -69,15 +80,16 @@ function describe() {
 }
 
 async function vote() {
-  if (voted.value || err.value) return
+  if (voted.value || busy.value) return
+  busy.value = true
+  err.value = ''
   const res = await post('vote', { ...creds(), target: target.value })
+  busy.value = false
   if (!res.ok) { err.value = errorText(res.error); return }
   // The response is the live room-room status — render it now instead of
   // waiting for the next poll tick. Voting ends reveal immediately when this
   // was the final vote, so route to /result on the spot.
-  state.value = res
-  if (res.phase === 'result') router.push('/result')
-  else poll()
+  applyState(res)
 }
 </script>
 
@@ -86,6 +98,9 @@ async function vote() {
     <div class="container role-banner">
       <span class="role-emoji">{{ roleIcon(me.role) }}</span>
       <div><b>你最初的身份：{{ roleName(me.role) }}</b></div>
+      <p v-if="me.action_was_fake" class="muted">
+        刚才是伪装操作，不会产生实际效果。你真正的初始身份是 {{ roleName(me.role) }}，夜间信息如下。
+      </p>
       <!-- 只有失眠者拥有知道最终身份的夜技能；其他人都不知道自己的最终身份。 -->
       <div v-if="me.role === 'insomniac' && me.info?.final_role" class="final-role">
         <b>你的最终身份：</b>{{ roleIcon(me.info.final_role) }} {{ roleName(me.info.final_role) }}
@@ -112,12 +127,15 @@ async function vote() {
       <p class="status" style="margin-top:14px">{{ selectionText() }}</p>
 
       <div class="vote-actions">
-        <button class="btn-primary btn-block" :disabled="voted" @click="vote">
+        <button class="btn-primary btn-block" :disabled="voted || busy" @click="vote">
           {{ voted ? '你已投票 ✓' : target ? `确认投票（${target}）` : '确认弃权' }}
         </button>
       </div>
       <p v-if="err" class="error">{{ err }}</p>
     </div>
+  </div>
+  <div v-else-if="err" class="container error">{{ err }}
+    <button :disabled="loading" @click="loadReveal">重试</button>
   </div>
   <div class="muted" style="text-align:center" v-else>正在揭晓…</div>
 </template>

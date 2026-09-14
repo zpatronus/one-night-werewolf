@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { post } from '../api'
+import { calculateResult } from '../result'
 import { creds } from '../store'
 import { roleName, roleIcon, verdictText, errorText } from '../gameConfig'
 import { avatarUrl } from '../avatar'
@@ -8,12 +9,18 @@ import { sortPlayers } from '../playerOrder'
 
 const data = ref(null)
 const err = ref('')
+const loading = ref(false)
 
-onMounted(async () => {
+async function loadResult() {
+  if (loading.value) return
+  loading.value = true
+  err.value = ''
   const res = await post('result', creds())
+  loading.value = false
   if (!res.ok) { err.value = errorText(res.error); return }
-  data.value = res
-})
+  data.value = calculateResult(res)
+}
+onMounted(loadResult)
 
 const players = computed(() => sortPlayers(creds().roomid, data.value?.players || []))
 const ops = computed(() => data.value?.ops || [])
@@ -28,7 +35,7 @@ function opSentence(op) {
     case 'lone_wolf':
       return `🐺 独狼窥视中央第 ${(op.center ?? -1) + 1} 张 → ${peek(op.card)}`
     case 'minion':
-      return `💀 爪牙得知了狼人是：${(op.wolves || []).join('、')}`
+      return `💀 爪牙 ${op.minion} 得知了狼人是：${(op.wolves || []).join('、')}`
     case 'seer': {
       const who = op.seer || '预言家'
       if (Array.isArray(op.center_picks) && op.center_picks.length) {
@@ -36,10 +43,7 @@ function opSentence(op) {
         const cards = (op.peeked || []).map(peek).join('、')
         return `🔮 ${who} 窥视中央 ${picks} → ${cards}`
       }
-      // Single pick: ``target`` is either a player or "center_<idx>".
-      const m = String(op.target || '').match(/^center_(\d+)$/)
       const card = (op.peeked || [])[0]
-      if (m && card) return `🔮 ${who} 窥视中央第 ${Number(m[1]) + 1} 张 → ${peek(card)}`
       return card
         ? `🔮 ${who} 窥视 ${op.target} → ${peek(card)}`
         : `🔮 ${who} 未成功窥视。`
@@ -76,6 +80,7 @@ function voters() {
         <template v-else>无人被处决（弃权或平票）</template>
       </p>
       <p class="muted" style="font-size:13px">投票分布：{{ voters() }}</p>
+      <p v-for="p in players" :key="p.userid" class="muted">{{ p.userid }} → {{ p.vote_target || '弃权' }}</p>
     </div>
 
     <!-- 每位玩家：最初身份 → 最终身份 + 胜负 -->
@@ -118,7 +123,7 @@ function voters() {
       </button>
     </div>
   </div>
-  <div v-else-if="err" class="container error">{{ err }}</div>
+  <div v-else-if="err" class="container error">{{ err }} <button :disabled="loading" @click="loadResult">重试</button></div>
   <div v-else class="muted" style="text-align:center">正在结算…</div>
 </template>
 

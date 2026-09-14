@@ -1,5 +1,8 @@
 # 一夜狼人 — View 逻辑流设计（逐页面）
 
+> 当前数据结构、请求字段与并发约束以 [endpoint-design.md](endpoint-design.md) 为准；使用本项目自定义胜负规则。
+
+
 > 配套文档：`design.md` 讲总体与后端；本文聚焦**每个 View 的组成元素、轮询节奏、跳转逻辑**。
 > 技术栈：Vue 3 + Vue Router + Vuex；实时性一律 HTTP 轮询（**无 websocket**）。
 
@@ -20,7 +23,7 @@
 |---|---|---|
 | `waiting` | `WaitingRoomView` | `users, userCount, avatars, host, is_owner, board` |
 | `op` | `OperationView` | `role, my_choice, submitted, submitted_count, total_count, deadline_ms` |
-| `reveal` | `RevealView` | `voted, voted_count, total_count`（**仅投票进度**，不含揭晓内容——揭晓由一次性 `/api/reveal/` 给） |
+| `reveal` | `RevealView` | `voted`（**仅投票进度**，不含揭晓内容——揭晓由一次性 `/api/reveal/` 给） |
 | `result` | `ResultView` | 空（结果由一次性 `/api/result/` 给） |
 
 **统一调度逻辑**（每个 View 的间歇轮询都套同一段）：
@@ -34,7 +37,7 @@
 
 ## 1. HomeView（`/`）
 
-**职责**：玩法介绍 + 更新日志 + 页脚。
+**职责**：创建和加入房间说明；暂不展示游戏规则教学。
 
 - **组成元素**：
   - masthead（标题/标语）、顶部 nav（主页 / 创建房间 / 加入房间）——来自 `App.vue`。
@@ -106,13 +109,13 @@ Home ──nav──▶ CreateRoom ──▶ JoinRoom ──▶ WaitingRoom ─�
     - “提交变更”按钮（把修改器草稿 `POST` 给 `set_board`）+ “开始游戏”按钮（`canStart` 时可用）。
   - 非房主：只读板子（无修改器）+ “等待房主开始…” 提示。
   - 状态区 `info` + 开始确认 `<dialog>`。
-- **本地记忆**：`board:<人数>`（房主提交变更成功时写回该人数对应键；仅作下次进入的默认草稿，**显示一律以服务端为准**）。
+- **初始板子**：每个新房间狼人 2、村民 2，其余角色各 1。不读取板子缓存，公共板子始终显示服务器版本。
 - **轮询**：`setInterval(2s) → POST /api/room_state/ {roomid,userid,userpsw}`（§0.1 唯一轮询端点）：
   - `phase='waiting'` 时 payload = `users` / `userCount` / `avatars` / `host` / `is_owner` / **`board`（当前 DB 模板）**。
   - **统一跳转判定（§0.1）**：`phase != 'waiting'`（例如变成 `'op'`）→ 按 phase 路由跳转（进 `/ops`）。`phase=='waiting'` → 用 payload 渲染本页（**非房主只读板子**）。
 - **交互动作**：
   - 房主在修改器里调整份数（本地草稿，**尚未提交、不影响他人**）。
-  - 点“提交变更” → `POST /api/set_board/ {board:{role:count}}`；**响应返回 DB 上已保存的 `board`（与轮询同一形状）**，房主用该返回值覆盖本地草稿并写回 `localStorage`——保证修改器的数字与服务器一致（waiting 阶段后端不校验，允许半成品）。
+  - 点“提交变更” → `POST /api/set_board/ {board:{role:count}}`；**响应返回 DB 上已保存的 `board`（与轮询同一形状）**，房主用该返回值覆盖本地草稿和公共板子——保证修改器的数字与服务器一致（waiting 阶段后端不校验，允许半成品）。
   - 点“开始游戏”→ `<dialog>` 二次确认 → `POST /api/start_game/`：
     - **唯一校验边界**：Σ份数 != 人数+3 或非法 → 后端拒绝（`bad_board`），房间停留 waiting，`info` 显示错误。
     - 成功（`phase` 变 `'op'`）→ 按统一 phase 路由跳 `/ops`。
@@ -141,7 +144,7 @@ Home ──nav──▶ CreateRoom ──▶ JoinRoom ──▶ WaitingRoom ─�
   - 提交按钮 + `info`。
 - **身份伪装逻辑**（服务端在 `phase='op'` 的 `/api/room_state/` 响应里下发 `role` 字段）：
   - 真身份有夜间行动（独狼/预言家/强盗/捣蛋鬼）→ 显示其操作界面（真捣蛋鬼看到“你是捣蛋鬼，选两张”）。
-  - 真身份无行动（狼群狼/爪牙/失眠者/村民）→ 服务端随机从 {预言家, 强盗, 捣蛋鬼, **独狼**} 下发一个**假身份界面**，照常选（仅防场外，不参与结算）。
+  - 真身份无需选择（有狼队友的狼人/爪牙/失眠者/村民）→ 服务端随机从模板中存在的可操作角色下发一个**假身份界面**，照常选（仅防场外，不参与结算）。
   - **阶段一不显示任何结果**：所选目标/中央牌一律背朝上，凭名字/位置点选。
 - **轮询**：`setInterval(2s) → POST /api/room_state/ {roomid,userid,userpsw}`（§0.1 唯一端点）；`phase=op` 时 payload 为**提交同一套格式**：
   ```
@@ -152,7 +155,7 @@ Home ──nav──▶ CreateRoom ──▶ JoinRoom ──▶ WaitingRoom ─�
   - **统一跳转判定（§0.1）**：`phase != 'op'`（变成 `reveal`）→ 按 phase 路由跳 `/reveal`。`phase=='op'` → 用 `my_choice` 等渲染本页（`/ops` 页的两态：匹配→渲染操作 UI，不符→跳走）。
 - **交互动作**：
   - 每次选中 → `POST /api/night_action/ {choice}`；可多次改选，后者覆盖（best effort）。
-  - 倒计时归零或全员提交后：服务端切换 `phase=reveal`（对始终未提交者随机默认操作）。
+  - 倒计时归零后（即使全员提前提交也等满）：服务端切换 `phase=reveal`（对始终未提交者随机默认操作）。
   - 倒计时到 0 而轮询仍 `phase=op` 时：本地强制提交默认/停止操作并继续轮询，等服务端推进。
 - **跳转**：按 §0.1 统一逻辑：`phase≠op → /reveal`。
 
@@ -163,18 +166,18 @@ Home ──nav──▶ CreateRoom ──▶ JoinRoom ──▶ WaitingRoom ─�
 **职责**：一次性拿到自己的揭晓结果，并在同一界面投出处决对象（一人一票）；轮询等全员投完。
 
 - **组成元素**：
-  - 你的身份卡（`final_role`）+ 按身份分派的信息：
+  - 你的初始身份卡（`role`）；若 `action_was_fake=true`，提示刚才是无实际效果的伪装操作。按真实身份分派的信息：
     - 狼人/爪牙：显示狼队友名单；爪牙提示“狼人不知道我是爪牙”。
     - 独狼：显示你窥视的那张中央牌。
     - 预言家：显示你看的玩家牌 / 两张中央牌。
-    - 强盗：显示你换到的新身份（即 `final_role`）。
+    - 强盗：显示你换到的新身份（交换完成当时看到的牌，不代表最终身份）。
     - 捣蛋鬼：提示“你交换了 A 与 B”（不显示牌）。
     - 失眠者：显示复核后的自己的牌。
   - **投票控件**：所有玩家（含头像）+ 对每个玩家的“处决”按钮 + 一个“弃权”选项。
   - “我已投”提示 / 状态区 `info`。
 - **进入时一次性拉取**：`mounted` 里 `POST /api/reveal/ {roomid,userid,userpsw}` **只调一次**，拿本玩家唯一正文应答（幂等，**不再轮询它**）。结果渲染到身份卡与信息区。
-- **轮询**：`setInterval(2s) → POST /api/room_state/ {roomid,userid,userpsw}`。`phase='reveal'` 时 payload = `{voted, voted_count, total_count}`（**仅投票进度**，不含揭晓内容）：
-  - 用 `voted/voted_count/total_count` 更新“我已投 / 已投 N 人”进度。
+- **轮询**：`setInterval(2s) → POST /api/room_state/ {roomid,userid,userpsw}`。`phase='reveal'` 时 payload = `{voted}`（**仅投票进度**，不含揭晓内容）：
+  - 用 `voted` 更新本人“已投票”状态，不展示他人投票进度。
   - **统一跳转判定（§0.1）**：`phase=='result'`（= 全员投完）→ 跳 `/result`。`phase=='reveal'` → 留在本页（此轮询**不是**再要揭晓结果）。
 - **交互动作**：
   - 选中某人或弃权 → `POST /api/vote/ {target}`；**每人只允许投一次**（服务端按 `room.phase=='reveal'` 且本人未投判定，后续重投被拒）。
@@ -193,7 +196,7 @@ Home ──nav──▶ CreateRoom ──▶ JoinRoom ──▶ WaitingRoom ─�
   - 所有人的最终身份卡（公开）。
   - 历史时间线：谁换了谁（强盗/捣蛋鬼）、预言家看谁、票型（每人投了谁/弃权）。
   - 返回主页按钮（**不提供“再来一局/回 WaitingRoom”**——一个房间只打一局，想再来请另建/另进一个房间）。
-- **进入时**：`mounted` 里 `POST /api/result/ {roomid,userid,userpsw}` 一次，拿最终数据渲染。
+- **进入时**：`mounted` 里 `POST /api/result/ {roomid,userid,userpsw}` 一次，拿原始数据 `{center, players:[{userid, avatar, role, choice, vote_target}]}`，由前端计算最终身份、票数、胜负与行动回放后渲染。
 - **轮询**：无（结果已定，一次性拉取即可）。
 - **跳转**：手动回主页（**一个房间 = 一局**；本局结束后该房间不再复用，想开新局需新开房间或加入别的新房间）。
 
@@ -207,7 +210,7 @@ Home ──nav──▶ CreateRoom ──▶ JoinRoom ──▶ WaitingRoom ─�
 |---|---|---|---|---|
 | `waiting` | WaitingRoom | `/api/room_state/` | `users, userCount, avatars, host, is_owner, board` | → 对应对局 View |
 | `op` | OperationView | `/api/room_state/` | `role, my_choice, submitted, submitted_count, total_count, deadline_ms` | `≠op` → `/reveal` |
-| `reveal` | RevealView | `/api/room_state/` | `voted, voted_count, total_count` | `=result` → `/result` |
+| `reveal` | RevealView | `/api/room_state/` | `voted` | `=result` → `/result` |
 | `result` | ResultView | 无（进入前已在上一 View 等到全员投完） | — | 手动 |
 
 （Home / CreateRoom / JoinRoom 无 phase 轮询，靠 POST 成功后手动一跳。一次性取数：`/api/reveal/` 阶段二进入时、`/api/result/` 结果界面进入时各拉一次，不走轮询。）

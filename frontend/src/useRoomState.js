@@ -14,29 +14,42 @@ export function useRoomState(onState = null) {
   const state = ref(null)
   const error = ref(null)
   let timer = null
+  let active = true
+  let pending = null
+  let revision = 0
 
-  async function poll() {
-    if (!creds().roomid) return
-    const res = await post('room_state', creds())
-    if (!res || res.error) {
-      error.value = (res && res.error) || 'network_error'
-      return
-    }
+  function applyState(res) {
+    if (!active || !res || !res.ok) return
+    revision++
     error.value = null
     state.value = res
     if (onState) onState(res)
     const target = PHASE_ROUTE[res.phase]
-    if (target && router.currentRoute.value.path !== target) {
-      router.push(target)
-      return
-    }
+    if (target && router.currentRoute.value.path !== target) router.push(target)
+  }
+
+  function poll() {
+    if (!active || !creds().roomid) return Promise.resolve(null)
+    if (pending) return pending
+    const version = revision
+    pending = (async () => {
+      const res = await post('room_state', creds())
+      if (!active || version !== revision) return null
+      if (!res?.ok) {
+        error.value = res?.error || 'network_error'
+        return null
+      }
+      applyState(res)
+      return res
+    })().finally(() => { pending = null })
+    return pending
   }
 
   onMounted(() => {
     poll()
     timer = setInterval(poll, INTERVAL)
   })
-  onUnmounted(() => clearInterval(timer))
+  onUnmounted(() => { active = false; clearInterval(timer) })
 
-  return { state, error, poll }
+  return { state, error, poll, applyState }
 }

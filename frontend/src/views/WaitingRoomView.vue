@@ -9,10 +9,12 @@ import { avatarUrl, getMyAvatar } from '../avatar'
 import { sortPlayers } from '../playerOrder'
 
 const router = useRouter()
-const { state } = useRoomState()
+const { state, applyState } = useRoomState()
 const board = ref(null)           // {role_code: count}; editable by host
 const err = ref('')
 const starting = ref(false)
+const saving = ref(false)
+const draftEdited = ref(false)
 const confirmOpen = ref(false)    // start-confirmation dialog
 
 const MIN = 3
@@ -20,12 +22,10 @@ const MAX = 10
 const n = () => state.value?.userCount || 0
 const isHost = () => state.value?.is_owner
 
-// Load or init the board whenever the waiting snapshot updates.
+// Polls update the public board without overwriting an unsaved host draft.
 watch(state, (s) => {
-  if (!s || s.phase !== 'waiting') return
-  const cached = localStorage.getItem(`board:${s.userCount}`)
-  const stored = cached ? JSON.parse(cached) : null
-  board.value = stored || (s.board && Object.keys(s.board).length ? s.board : boardTemplate(s.userCount))
+  if (!s || s.phase !== 'waiting' || draftEdited.value || saving.value) return
+  board.value = { ...(s.board ?? boardTemplate()) }
 }, { immediate: true })
 
 const users = computed(() => sortPlayers(creds().roomid, state.value?.users || []))
@@ -39,7 +39,8 @@ function avatarOf(userid) {
 }
 
 function canStart() {
-  return n() >= MIN && n() <= MAX
+  return n() >= MIN && n() <= MAX && !dirty.value && !saving.value
+    && Object.values(currentBoard()).reduce((a, b) => a + b, 0) === n() + 3
 }
 
 function cardsLeft() {
@@ -56,26 +57,34 @@ function atMax(role) {
 }
 
 function adjust(role, delta) {
+  if (starting.value || saving.value) return
   const b = { ...board.value }
   const next = Math.max(0, (b[role] || 0) + delta)
   if (delta > 0 && next > maxFor(role)) return   // enforce the hard cap
   b[role] = next
   board.value = b
-  localStorage.setItem(`board:${n()}`, JSON.stringify(b))
-  saveBoard(b)
+  draftEdited.value = true
 }
 
-async function saveBoard(b) {
-  if (!isHost()) return
-  await post('set_board', { ...creds(), board: b })
+async function saveBoard() {
+  if (!isHost() || saving.value || starting.value) return
+  saving.value = true
+  err.value = ''
+  try {
+    const res = await post('set_board', { ...creds(), board: { ...board.value } })
+    if (!res.ok) { err.value = errorText(res.error); return }
+    board.value = { ...res.board }
+    draftEdited.value = false
+    // Invalidate any poll started before this save so it cannot undo the update.
+    applyState({ ...state.value, board: res.board, ok: true })
+  } finally { saving.value = false }
 }
 
 async function start() {
-  if (starting.value) return
+  if (starting.value || !canStart()) return
   starting.value = true
   err.value = ''
   confirmOpen.value = false
-  await saveBoard(board.value)   // persist latest edits
   const res = await post('start_game', creds())
   starting.value = false
   if (!res.ok) { err.value = errorText(res.error); return }
@@ -87,16 +96,12 @@ const usedCount = computed(() => Object.values(board.value || {}).reduce((a, b) 
 // The deck is well-formed only when it holds exactly playerCount + 3 cards.
 const boardValid = computed(() => cardsLeft() === 0)
 
-// The live board shown to everyone. Owners see their own latest edits (saved to
-// the server on every adjust, so this matches the server board); everyone else
-// sees the server's saved board, refreshed by polling. Falls back to the default
-// template before the owner has configured anything.
+// The public board is the server's submitted template for every player.
 function currentBoard() {
-  const s = state.value?.board
-  if (isHost()) return board.value || boardTemplate(n())
-  if (s && Object.keys(s).length) return s
-  return boardTemplate(n())
+  return state.value?.board ?? boardTemplate()
 }
+const dirty = computed(() => ROLE_ORDER.some(role =>
+  (board.value?.[role] || 0) !== (currentBoard()[role] || 0)))
 
 // Only roles present on the board (count > 0) are displayed.
 const liveBoard = computed(() => currentBoard())
@@ -161,9 +166,9 @@ watch(liveBoard, (b, prev) => {
           <div v-for="role in ROLE_ORDER" :key="role" class="board-row">
             <span>{{ roleIcon(role) }} {{ roleName(role) }}</span>
             <span class="board-stepper">
-              <button @click="adjust(role, -1)" :disabled="(board[role] || 0) <= 0">−</button>
+              <button @click="adjust(role, -1)" :disabled="saving || starting || (board[role] || 0) <= 0">−</button>
               <span class="board-count">{{ board[role] || 0 }}</span>
-              <button @click="adjust(role, 1)" :disabled="atMax(role)">+</button>
+              <button @click="adjust(role, 1)" :disabled="saving || starting || atMax(role)">+</button>
             </span>
           </div>
           <p class="board-sum" :class="boardValid ? '' : 'error'">
@@ -174,6 +179,10 @@ watch(liveBoard, (b, prev) => {
               ? `板子不完整：还差 ${cardsLeft()} 张未分配`
               : `板子超量：超出 ${-cardsLeft()} 张` }}
           </p>
+          <button class="btn-primary btn-block" :disabled="saving || starting || !dirty" @click="saveBoard">
+            {{ saving ? '提交中…' : '提交板子' }}
+          </button>
+          <p v-if="dirty" class="muted">修改尚未提交，请提交后再开始游戏。</p>
         </div>
       </template>
       <p v-else class="subsubtitle" style="text-align:center">板子由房主配置，上方为当前内容。</p>

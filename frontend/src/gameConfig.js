@@ -14,21 +14,14 @@ export const ROLE_DISPLAY = {
 export const roleName = (code) => ROLE_DISPLAY[code]?.name || code
 export const roleIcon = (code) => ROLE_DISPLAY[code]?.emoji || '❔'
 
-// OPERATION_ROLES = identities that take a real action in phase 1 (server
-// settles them). No-action players get one of these as a decoy interface too.
+// Operable interfaces. Pack wolves and other no-choice roles receive a
+// template-based decoy; only lone wolves really peek.
 export const OPERATION_ROLES = ['seer', 'robber', 'troublemaker', 'werewolf']
 
-// Default board template mirroring the backend (sum = players + 3 center).
-export function boardTemplate(playerCount) {
-  const board = {
-    werewolf: playerCount <= 3 ? 1 : 2,
-    seer: 1,
-    robber: 1,
-    troublemaker: 1,
-    insomniac: 1,
-  }
-  board.villager = playerCount + 3 - Object.values(board).reduce((a, b) => a + b, 0)
-  return board
+// Every room starts with two wolves, two villagers, and one of every other role.
+export function boardTemplate() {
+  return Object.fromEntries(Object.keys(ROLE_DISPLAY).map(role =>
+    [role, ['werewolf', 'villager'].includes(role) ? 2 : 1]))
 }
 
 export const ROLE_ORDER = ['werewolf', 'seer', 'robber', 'troublemaker', 'insomniac', 'minion', 'villager']
@@ -37,9 +30,11 @@ export const ROLE_ORDER = ['werewolf', 'seer', 'robber', 'troublemaker', 'insomn
 export const ERROR_MESSAGES = {
   roomid_taken: '房间号已被占用',
   bad_request: '请求格式错误',
+  method_not_allowed: '请求方法不支持',
   room_not_found: '房间不存在',
   wrong_password: '密码错误',
   bad_credentials: '凭据不正确（房间号 / 玩家名 / 密码）',
+  room_full: '房间已满（最多 10 人）',
   room_started: '房间已开局，无法加入',
   not_host: '只有房主可以执行此操作',
   not_waiting: '房间已不在等待阶段',
@@ -62,9 +57,12 @@ export function errorText(code) {
 }
 
 const VERDICT = {
+  no_evil_players: '玩家中没有狼人或爪牙，全员弃权，好人阵营获胜 🎉',
+  no_evil_but_votes: '玩家中没有狼人或爪牙，但有人投票，全体玩家落败',
+  minion_in_tie: '场上无狼人，平票者中有爪牙，好人阵营获胜 🎉',
   wolf_executed: '狼人被处决，好人阵营获胜 🎉',
   minion_executed_no_wolf: '爪牙被处决，好人阵营获胜 🎉',
-  villager_executed: '好人被处决，狼人阵营获胜',
+  villager_executed: '未投出关键目标，狼人阵营获胜',
   no_execution: '无人被处决，狼人阵营获胜',
   wolf_in_tie: '平票，但平票者中存在狼人，狼人阵营落败，好人阵营获胜 🎉',
 }

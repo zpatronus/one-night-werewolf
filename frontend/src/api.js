@@ -40,6 +40,9 @@ export async function post(path, body = {}) {
   } catch {
     return { ok: false, error: `http_${res.status}` }
   }
+  if (!data || typeof data !== 'object' || Array.isArray(data) || typeof data.ok !== 'boolean') {
+    return { ok: false, error: `http_${res.status}` }
+  }
   // If we got a fresh CSRF cookie/token, keep it for next time.
   if (data && data.csrf_token) csrfToken = data.csrf_token
   return data

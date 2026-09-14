@@ -1,6 +1,5 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import { post } from '../api'
 import { creds } from '../store'
 import { useRoomState } from '../useRoomState'
@@ -8,13 +7,13 @@ import { roleName, roleIcon, errorText } from '../gameConfig'
 import { avatarUrl } from '../avatar'
 import { sortPlayers } from '../playerOrder'
 
-const router = useRouter()
 
-const { state } = useRoomState()
+const { state, error: pollError, applyState } = useRoomState()
 const sel = reactive({ a: '', b: '', center: -1, picks: [] })  // a/b: players; center: lone-wolf; picks: seer center (1-2, ordered)
 const mode = ref('player')  // seer toggle: 'player' | 'center'
 const confirmed = ref(false)
 const err = ref('')
+const busy = ref(false)
 
 const role = computed(() => state.value?.role)
 const users = computed(() => sortPlayers(creds().roomid, state.value?.users || []))
@@ -23,7 +22,7 @@ const others = computed(() => users.value.filter((u) => u.userid !== creds().use
 
 const isSeer = () => role.value === 'seer'
 const isSelectPlayers = () => ['robber', 'troublemaker'].includes(role.value)
-const isCenterPicker = () => ['seer', 'werewolf'].includes(role.value)
+const isCenterPicker = () => role.value === 'werewolf' || (role.value === 'seer' && mode.value === 'center')
 
 // How many players this operating identity picks (0 = center pickers / none).
 function maxPicks() {
@@ -73,10 +72,10 @@ function centerTag(i) {
 function completed() {
   const t = role.value
   if (t === 'troublemaker') return !!(sel.a && sel.b && sel.a !== sel.b)
-  if (t === 'seer') return mode.value === 'center' ? sel.picks.length >= 1 : !!sel.a
+  if (t === 'seer') return mode.value === 'center' ? sel.picks.length === 2 : !!sel.a
   if (t === 'robber') return !!sel.a
   if (t === 'werewolf') return sel.center >= 0
-  return true
+  return false
 }
 
 // Avalon-style status line telling the player exactly what they have selected.
@@ -91,7 +90,7 @@ function selectionText() {
   if (t === 'seer') {
     if (mode.value === 'center') {
       if (sel.picks.length) return `已选择：中央第 ${sel.picks.map((i) => i + 1).join('、')} 张（${sel.picks.length}/2）。`
-      return '请选择 1~2 张中央牌查看。'
+      return '请选择 2 张中央牌查看。'
     }
     return sel.a ? `已选择 ${sel.a}，查看其身份。` : '请选择一位玩家查看身份。'
   }
@@ -158,19 +157,21 @@ function buildChoice() {
     return { type: 'seer', target: sel.a }
   }
   if (t === 'werewolf') return { type: 'wolf', target: `center_${sel.center}` }
-  return { type: 'none' }
+  return null
 }
 
 async function submit() {
-  if (err.value) return
-  confirmed.value = true
+  if (busy.value || !completed()) return
+  busy.value = true
+  err.value = ''
   const res = await post('night_action', { ...creds(), choice: buildChoice() })
+  busy.value = false
   if (!res.ok) { err.value = errorText(res.error); return }
+  confirmed.value = true
   // The response is the live room status: render it now (the "我的操作" panel
   // flips to the submitted op instantly) and route straight to /reveal when
-  // this was the last outstanding op.
-  state.value = res
-  if (res.phase === 'reveal') router.push('/reveal')
+  // the server has reached the deadline.
+  applyState(res)
 }
 </script>
 
@@ -208,7 +209,7 @@ async function submit() {
       <template v-if="isSeer()">
         <div class="dir" style="margin-bottom:14px">
           <button class="mode-btn" :class="{ selected: mode === 'player' }" @click="mode = 'player'">看一名玩家</button>
-          <button class="mode-btn" :class="{ selected: mode === 'center' }" @click="mode = 'center'">看中央 1~2 张</button>
+          <button class="mode-btn" :class="{ selected: mode === 'center' }" @click="mode = 'center'">看中央 2 张</button>
         </div>
       </template>
 
@@ -234,7 +235,7 @@ async function submit() {
 
       <template v-if="isCenterPicker()">
         <div class="muted" style="margin-bottom:8px">
-          <span v-if="role === 'seer'">选择 1~2 张中央牌窥视（按顺序分别查看）</span>
+          <span v-if="role === 'seer'">选择 2 张中央牌窥视（按顺序分别查看）</span>
           <span v-else-if="role === 'werewolf'">你是独狼，选择一张中央牌窥视</span>
         </div>
         <div class="dir" style="justify-content:space-around">
@@ -252,10 +253,10 @@ async function submit() {
 
       <p class="status" style="margin-top:14px">{{ selectionText() }}</p>
 
-      <button class="btn-primary btn-block" style="margin-top:6px" :disabled="!completed()" @click="submit">
+      <button class="btn-primary btn-block" style="margin-top:6px" :disabled="!completed() || busy" @click="submit">
         {{ confirmed && completed() ? '更新提交' : '确认提交' }}
       </button>
-      <p v-if="err" class="error">{{ err }}</p>
+      <p v-if="err || pollError" class="error">{{ err || errorText(pollError) }}</p>
     </div>
   </div>
 </template>
