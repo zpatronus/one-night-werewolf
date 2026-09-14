@@ -32,6 +32,13 @@ function maxPicks() {
   return 0
 }
 
+// Keep the N(=2) most recently selected ("select last as 2"). Selecting a
+// third evicts the oldest -- the "1" slot -- and shifts "2" up to "1", so the
+// ring always holds the two newest picks in selection order.
+function mostRecent2(arr, item) {
+  return arr.filter((x) => x !== item).concat(item).slice(-2)
+}
+
 function pickPlayer(uid) {
   const m = maxPicks()
   if (m === 1) {
@@ -40,20 +47,16 @@ function pickPlayer(uid) {
     sel.a = sel.a === uid ? '' : uid
     return
   }
-  // two-pick role (troublemaker): toggle fills slot 1 then 2; full -> replace the older.
-  if (sel.a === uid) { sel.a = ''; return }
-  if (sel.b === uid) { sel.b = ''; return }
-  if (!sel.a) { sel.a = uid; return }
-  if (!sel.b) { sel.b = uid; return }
-  sel.a = uid
+  // two-pick role (troublemaker): keep the two most recently selected players.
+  const ordered = mostRecent2([sel.a, sel.b].filter(Boolean), uid)
+  sel.a = ordered[0] || ''
+  sel.b = ordered[1] || ''
 }
 
-// Seer center: toggle an ordered 1-2 selection. Lone wolf: single toggle.
+// Seer center keeps the two most recent cards in order; lone wolf is a single toggle.
 function pickCenter(i) {
   if (role.value === 'seer') {
-    const k = sel.picks.indexOf(i)
-    if (k >= 0) sel.picks.splice(k, 1)
-    else if (sel.picks.length < 2) sel.picks.push(i)
+    sel.picks = mostRecent2(sel.picks.slice(), i)
     return
   }
   if (role.value === 'werewolf') sel.center = sel.center === i ? -1 : i
@@ -82,9 +85,9 @@ function completed() {
 function selectionText() {
   const t = role.value
   if (t === 'troublemaker') {
-    if (sel.a && sel.b) return `已选择：${sel.a} 和 ${sel.b}，随机会置换他们的身份。`
-    if (sel.a) return `已选择 ${sel.a}（1/2），请再选一位要置换的玩家。`
-    return '请选择两位玩家以置换他们的身份。'
+    if (sel.a && sel.b) return `已选择：${sel.a} 和 ${sel.b}，将交换他们的身份。`
+    if (sel.a) return `已选择 ${sel.a}（1/2），请再选一位要交换的玩家。`
+    return '请选择两位玩家以交换他们的身份。'
   }
   if (t === 'robber') return sel.a ? `已选择 ${sel.a}，你将取走他的牌。` : '请选择一位玩家以交换身份。'
   if (t === 'seer') {
@@ -106,7 +109,7 @@ function submittedOpsText() {
   if (!c || typeof c !== 'object' || !c.type) return '已提交。'
   switch (c.type) {
     case 'troublemaker':
-      return `🍬 已提交：置换 ${c.target} 与 ${c.target2} 的身份。`
+      return `🍬 已提交：交换 ${c.target} 与 ${c.target2} 的身份。`
     case 'robber':
       return `🔪 已提交：与 ${c.target} 交换身份。`
     case 'seer': {
@@ -184,25 +187,18 @@ async function submit() {
 
     <!-- 操作面板：只显示"我"已提交到服务器的 ops（由服务器 response 渲染），
          其他玩家的操作一律保密，绝不展示谁已完成/未完成。 -->
-    <div class="container op-panel">
-      <div class="subtitle">
-        我的操作
-        <span class="muted">（服务器同步 · {{ state.submitted_count }} / {{ state.total_count }} 完整）</span>
-      </div>
-      <p class="op-summary" :class="state.submitted ? 'done' : 'pending'">
-        {{ state.submitted ? submittedOpsText() : '尚未提交，请在下方面板选择行动。' }}
-      </p>
-    </div>
-
     <div class="container role-banner">
       <span class="role-emoji">{{ roleIcon(role) }}</span>
       <div><b>你是 {{ roleName(role) }}</b></div>
       <p class="muted" style="font-size:13px;margin:6px 0 0">
-        这是你正在操作的身份。请选择你的行动，结果将在下一阶段揭晓。
+        你正在操作的身份可能与真实身份一致，也可能只是伪装（用于防窥探）。
+        无论如何，请按这一身份认真作出选择——你的真实身份与有效行动将在下一阶段揭晓。
       </p>
-      <p v-if="confirmed || state.my_choice?.type" class="muted" style="font-size:12px;color:var(--good)">
-        已提交，修改后重新提交即可。
-      </p>
+      <div v-if="confirmed || state.my_choice?.type" class="submitted-card">
+        <div class="submitted-head">✅ 我的行动已提交</div>
+        <div class="submitted-body">{{ submittedOpsText() }}</div>
+        <div class="muted submitted-foot">如需修改，重新提交即可。</div>
+      </div>
     </div>
 
     <div class="container">
@@ -215,21 +211,24 @@ async function submit() {
 
       <template v-if="isSelectPlayers() || (isSeer() && mode === 'player')">
         <div class="muted" style="margin-bottom:8px">
-          <span v-if="role === 'troublemaker'">选择两位玩家，置换他们手上的身份（不能选自己）</span>
+          <span v-if="role === 'troublemaker'">选择两位玩家，交换他们手上的身份（不能选自己）</span>
           <span v-else-if="role === 'robber'">选择一位玩家，与他交换身份（不能选自己）</span>
           <span v-else>选择一位玩家窥视他的身份</span>
         </div>
-        <div
-          v-for="u in others"
-          :key="u.userid"
-          class="player-row"
-          :class="{ selected: sel.a === u.userid || sel.b === u.userid }"
-          @click="pickPlayer(u.userid)"
-        >
-          <img :src="avatarUrl(u.avatar)" alt="" />
-          <span>{{ u.userid }}</span>
-          <span v-if="sel.a === u.userid" class="pick-tag">{{ maxPicks() === 2 ? '第①位' : '✔' }}</span>
-          <span v-else-if="sel.b === u.userid" class="pick-tag">第②位</span>
+        <div class="select-grid">
+          <div
+            v-for="u in others"
+            :key="u.userid"
+            class="select-card"
+            :class="{ selected: sel.a === u.userid || sel.b === u.userid }"
+            @click="pickPlayer(u.userid)"
+          >
+            <span v-if="sel.a === u.userid || sel.b === u.userid" class="pick-tag">
+              {{ maxPicks() === 2 ? (sel.a === u.userid ? '①' : '②') : '✔' }}
+            </span>
+            <img :src="avatarUrl(u.avatar)" alt="" />
+            <span class="select-name">{{ u.userid }}</span>
+          </div>
         </div>
       </template>
 
@@ -271,14 +270,72 @@ async function submit() {
 .mode-btn { flex: 1; white-space: nowrap; }
 .center-btn { min-width: 92px; min-height: 64px; font-size: 1rem; position: relative; }
 .center-tag { color: var(--accent); font-weight: 800; }
-.pick-tag { margin-left: auto; color: var(--accent); font-weight: 700; }
-.op-panel .subtitle { margin-top: 0; }
-.op-summary {
-  margin: 4px 0 0;
-  font-size: 0.95rem;
-  font-weight: 600;
-  line-height: 1.6;
+.select-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 96px;
+  padding: 10px 6px 8px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
 }
-.op-summary.done { color: var(--good); }
-.op-summary.pending { color: var(--text); }
+.select-card.selected {
+  border-color: var(--accent);
+  background: rgba(229, 189, 84, 0.10);
+}
+.select-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+.select-card img {
+  width: 65px;
+  height: 65px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.select-name {
+  font-size: 1rem;
+  font-weight: 600;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pick-tag {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 1rem;
+}
+.submitted-card {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--good);
+  border-radius: 12px;
+  background: rgba(52, 168, 83, 0.08);
+}
+.submitted-head {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--good);
+  margin-bottom: 6px;
+}
+.submitted-body {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--text);
+}
+.submitted-foot {
+  margin-top: 6px;
+  font-size: 0.78rem;
+}
 </style>

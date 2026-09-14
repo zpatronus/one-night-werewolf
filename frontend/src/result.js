@@ -11,7 +11,7 @@ export function calculateResult({ players = [], center = [] } = {}) {
   if (wolves.length === 1) {
     const wolf = players.find(p => p.userid === wolves[0])
     const index = Number(wolf.choice.target.split('_')[1])
-    ops.push({ type: 'lone_wolf', center: index, card: center[index] })
+    ops.push({ type: 'lone_wolf', lone_wolf: wolf.userid, center: index, card: center[index] })
   }
   for (const p of players) {
     if (p.role !== 'seer') continue

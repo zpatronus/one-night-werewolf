@@ -7,6 +7,7 @@ import { useRoomState } from '../useRoomState'
 import { errorText, boardTemplate, roleName, roleIcon, ROLE_ORDER } from '../gameConfig'
 import { avatarUrl, getMyAvatar } from '../avatar'
 import { sortPlayers } from '../playerOrder'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const router = useRouter()
 const { state, applyState } = useRoomState()
@@ -202,14 +203,16 @@ watch(liveBoard, (b, prev) => {
       开始游戏
     </button>
 
-    <dialog v-if="confirmOpen && isHost()" open class="start-dialog" aria-labelledby="start-dialog-title">
-      <h2 id="start-dialog-title">准备开始？</h2>
-      <p class="start-confirm-info">当前共有 <strong>{{ n() }}</strong> 名玩家，所有玩家都到齐了吗？</p>
-      <div class="start-dialog-actions">
-        <button type="button" @click="confirmOpen = false">再等等</button>
-        <button type="button" class="btn-primary" :disabled="!canStart() || starting || !boardValid" @click="start">确认开始</button>
-      </div>
-    </dialog>
+    <ConfirmDialog
+      v-if="confirmOpen && isHost()"
+      title="准备开始？"
+      :message="`当前共有 ${n()} 名玩家，所有玩家都到齐了吗？开始后不可再修改板子。`"
+      confirm-text="确认开始"
+      cancel-text="再等等"
+      :confirm-disabled="!canStart() || starting || !boardValid"
+      @confirm="start"
+      @cancel="confirmOpen = false"
+    />
 
     <div class="status">{{ err }}</div>
   </div>

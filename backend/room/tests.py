@@ -10,6 +10,21 @@ from .models import Room, Player
 
 
 class GameChecks(TestCase):
+    # The test suite exercises production semantics: op -> reveal advances on
+    # the timeout alone (the anti-cheat rule), never on the dev-only
+    # "timeout + everyone operated" gate. Pin IS_DEV off so the local
+    # is-dev-machine marker can't silently change test behavior.
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls._orig_isdev = views.IS_DEV
+        views.IS_DEV = False
+
+    @classmethod
+    def tearDownClass(cls):
+        views.IS_DEV = cls._orig_isdev
+        super().tearDownClass()
+
     def setUp(self):
         self.factory = RequestFactory()
         self.room = Room.objects.create(roomid='Test', phase='op',

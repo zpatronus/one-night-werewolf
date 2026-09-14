@@ -574,34 +574,6 @@ dialog::backdrop {
 
 /* ---------- Start-confirmation dialog (waiting room) ---------- */
 
-.start-dialog {
-  width: 380px;
-}
-
-.start-dialog h2 {
-  margin: 0;
-  font-size: 1.2rem;
-  text-align: center;
-  color: var(--text);
-}
-
-.start-confirm-info {
-  margin: 16px 0 24px;
-  color: var(--text-dim);
-  text-align: center;
-}
-
-.start-confirm-info strong { color: var(--accent); }
-
-.start-dialog-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-}
-
-.start-dialog-actions button { margin: 0; }
-
 /* ---------- Game phase views (ops / reveal / result) ---------- */
 
 .role-banner { text-align: center; margin: 8px 0 20px; }

@@ -20,7 +20,7 @@ from django.http import JsonResponse
 from django.middleware.csrf import get_token
 from django.utils import timezone
 
-from onw_backend.config import OPS_DURATION
+from onw_backend.config import OPS_DURATION, IS_DEV
 from . import game
 from .avatars import AVATARS
 from .models import Room, Player
@@ -118,12 +118,15 @@ def _op_payload(room, player, deadline):
 
 
 def _reveal_payload(room, player):
-    # minimal: this caller only needs their own voted flag. Who has voted is
-    # nobody's business and must not be in the API response.
+    # minimal: this caller only needs their own vote state. Who has voted is
+    # nobody's business and must not be in the API response. vote_target is the
+    # caller's own pick ("" = abstain, else a userid) so they can re-highlight
+    # their choice after a refresh/rejoin.
     return {
         "ok": True,
         "phase": "reveal",
         "voted": player.vote_target is not None,
+        "vote_target": player.vote_target,
     }
 
 
@@ -150,12 +153,21 @@ def _advance(room):
     room.refresh_from_db()
 
     if room.phase == "op":
-        # op -> reveal fires ONLY when the deadline passes. It must NOT advance
-        # when everyone has submitted — that would let ring-late players infer
-        # who was done early (anti-cheat, see design.md ``%5``). So everyone
-        # waits out the full timer regardless of submission state.
-        timed_out = room.op_start_time and timezone.now() >= room.op_start_time + OPS_DURATION
-        if timed_out:
+        if IS_DEV:
+            # Development: advance only when BOTH the deadline has passed AND
+            # every player has operated. A stuck player is then impossible to
+            # miss. Not applied in production (see below).
+            timed_out = room.op_start_time and timezone.now() >= room.op_start_time + OPS_DURATION
+            all_operated = room.players.exclude(choice={}).count() == room.players.count()
+            advance = timed_out and all_operated
+        else:
+            # Production (anti-cheat, design.md ``%5``): op -> reveal fires ONLY
+            # when the deadline passes. It must NOT advance when everyone has
+            # submitted — that would let ring-late players infer who was done
+            # early. So everyone waits out the full timer regardless of state.
+            timed_out = room.op_start_time and timezone.now() >= room.op_start_time + OPS_DURATION
+            advance = timed_out
+        if advance:
             with transaction.atomic():
                 claimed = Room.objects.filter(
                     id=room.id, phase="op"
@@ -306,8 +318,7 @@ def night_action(request):
             choice = _body(request).get("choice")
             if not _valid_choice(room, player, choice):
                 raise ApiError("bad_choice")
-            Player.objects.filter(id=player.id, room__phase="op",
-                                  room__op_start_time__gt=timezone.now() - OPS_DURATION).update(
+            Player.objects.filter(id=player.id, room__phase="op").update(
                 choice=choice,
             )
             _advance(room)

@@ -1,11 +1,12 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { post } from '../api'
 import { creds } from '../store'
 import { useRoomState } from '../useRoomState'
 import { roleName, roleIcon, errorText } from '../gameConfig'
 import { avatarUrl } from '../avatar'
 import { sortPlayers } from '../playerOrder'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const { state, poll, applyState } = useRoomState()   // polls + routes to /result when voting ends
 const me = ref(null)               // one-shot POST /reveal body
@@ -13,6 +14,8 @@ const err = ref('')
 const busy = ref(false)
 const loading = ref(false)
 const target = ref('')             // "" = abstain
+const confirmOpen = ref(false)     // vote double-check dialog
+const showRole = ref(true)         // role info shown by default, hide on demand
 
 async function loadReveal() {
   if (loading.value) return
@@ -34,11 +37,29 @@ onMounted(loadReveal)
 const users = computed(() => sortPlayers(creds().roomid, (me.value?.users || []).filter(u => u.userid !== creds().userid)))
 const voted = computed(() => state.value?.voted ?? me.value?.voted)
 
+// After a refresh/rejoin the local selection is lost; re-highlight the caller's
+// own vote from the server. Only hydrate once we actually voted (vote_target
+// set) so we never clobber an in-progress pick before submitting.
+watch(state, (s) => {
+  if (s?.vote_target !== undefined && s?.vote_target !== null) {
+    target.value = s.vote_target
+  }
+}, { immediate: true })
+
 function pick(u) {
   if (voted.value) return
   target.value = target.value === u ? '' : u
 }
 function abstain() { pick('') }
+
+function openConfirm() {
+  if (voted.value || busy.value) return
+  confirmOpen.value = true
+}
+function confirmVote() {
+  confirmOpen.value = false
+  vote()
+}
 
 // Avalon-style selection status line.
 function selectionText() {
@@ -58,7 +79,7 @@ function describe() {
       }
       return `你是狼人，狼队友：${(info.teammates || []).join('、')}。`
     case 'minion':
-      return `你是爪牙。狼人是：${(info.teammates || []).join('、')}（他们不知道是你）。`
+      return `你是爪牙。狼人是：${(info.teammates || []).join('、')}。`
     case 'seer':
       if (info.center_picks && info.center_picks.length) {
         const items = info.center_picks.map((idx, k) => `中央第 ${idx + 1} 张`)
@@ -96,43 +117,63 @@ async function vote() {
 <template>
   <div v-if="me">
     <div class="container role-banner">
-      <span class="role-emoji">{{ roleIcon(me.role) }}</span>
-      <div><b>你最初的身份：{{ roleName(me.role) }}</b></div>
-      <p v-if="me.action_was_fake" class="muted">
-        刚才是伪装操作，不会产生实际效果。你真正的初始身份是 {{ roleName(me.role) }}，夜间信息如下。
+      <button type="button" class="toggle-role" @click="showRole = !showRole">
+        {{ showRole ? '👁 隐藏身份' : '🔒 身份已隐藏' }}
+      </button>
+      <template v-if="showRole">
+        <span class="role-emoji">{{ roleIcon(me.role) }}</span>
+        <div><b>你最初的身份：{{ roleName(me.role) }}</b></div>
+        <p v-if="me.action_was_fake" class="muted">
+          刚才是伪装操作，不会产生实际效果。你真正的初始身份是 {{ roleName(me.role) }}，夜间信息如下。
+        </p>
+        <!-- 只有失眠者拥有知道最终身份的夜技能；其他人都不知道自己的最终身份。 -->
+        <div v-if="me.role === 'insomniac' && me.info?.final_role" class="final-role">
+          <b>你的最终身份：</b>{{ roleIcon(me.info.final_role) }} {{ roleName(me.info.final_role) }}
+        </div>
+        <p style="line-height:1.8">{{ describe() }}</p>
+      </template>
+      <p v-else class="muted" style="text-align:center;margin:8px 0 0">
+        你的身份与夜间信息已隐藏，点击上方按钮查看。
       </p>
-      <!-- 只有失眠者拥有知道最终身份的夜技能；其他人都不知道自己的最终身份。 -->
-      <div v-if="me.role === 'insomniac' && me.info?.final_role" class="final-role">
-        <b>你的最终身份：</b>{{ roleIcon(me.info.final_role) }} {{ roleName(me.info.final_role) }}
-      </div>
-      <p style="line-height:1.8">{{ describe() }}</p>
     </div>
 
     <div class="container">
       <div class="subtitle">投出处决对象</div>
       <p class="muted" style="font-size:13px">选择一位玩家投出去，或弃权。每人只能投一次。</p>
 
-      <div
-        v-for="u in users"
-        :key="u.userid"
-        class="player-row"
-        :class="{ selected: target === u.userid }"
-        @click="pick(u.userid)"
-      >
-        <img :src="avatarUrl(u.avatar)" alt="" />
-        <span>{{ u.userid }}</span>
-        <span v-if="target === u.userid" class="pick-tag">✔ 处决</span>
+      <div class="select-grid">
+        <div
+          v-for="u in users"
+          :key="u.userid"
+          class="select-card"
+          :class="{ selected: target === u.userid }"
+          @click="pick(u.userid)"
+        >
+          <span v-if="target === u.userid" class="pick-tag">✔ 处决</span>
+          <img :src="avatarUrl(u.avatar)" alt="" />
+          <span class="select-name">{{ u.userid }}</span>
+        </div>
       </div>
 
       <p class="status" style="margin-top:14px">{{ selectionText() }}</p>
 
       <div class="vote-actions">
-        <button class="btn-primary btn-block" :disabled="voted || busy" @click="vote">
+        <button class="btn-primary btn-block" :disabled="voted || busy" @click="openConfirm">
           {{ voted ? '你已投票 ✓' : target ? `确认投票（${target}）` : '确认弃权' }}
         </button>
       </div>
       <p v-if="err" class="error">{{ err }}</p>
     </div>
+
+    <ConfirmDialog
+      v-if="confirmOpen"
+      title="确认你的投票？"
+      :message="target ? `你选择处决 ${target}。投票提交后不可更改。` : '你选择弃权，不处决任何玩家。投票提交后不可更改。'"
+      confirm-text="确认投票"
+      cancel-text="再想想"
+      @confirm="confirmVote"
+      @cancel="confirmOpen = false"
+    />
   </div>
   <div v-else-if="err" class="container error">{{ err }}
     <button :disabled="loading" @click="loadReveal">重试</button>
@@ -141,7 +182,61 @@ async function vote() {
 </template>
 
 <style scoped>
-.pick-tag { margin-left: auto; color: var(--accent); font-weight: 700; }
+.toggle-role {
+  align-self: center;
+  margin-bottom: 10px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(229, 189, 84, 0.4);
+  background: rgba(229, 189, 84, 0.10);
+  color: var(--accent);
+  font-weight: 700;
+  cursor: pointer;
+}
+.select-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+.select-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 96px;
+  padding: 10px 6px 8px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.select-card.selected {
+  border-color: var(--accent);
+  background: rgba(229, 189, 84, 0.10);
+}
+.select-card img {
+  width: 65px;
+  height: 65px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.select-name {
+  font-size: 1rem;
+  font-weight: 600;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pick-tag {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 0.8rem;
+}
 .final-role {
   display: inline-block;
   margin: 10px 0 4px;
