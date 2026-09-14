@@ -9,6 +9,7 @@ import { prefillIdentity, prefillRoomId, nextRoomId, randomPsw } from '../random
 import AvatarField from './AvatarField.vue'
 
 const router = useRouter()
+const PHASE_ROUTE = { waiting: '/waitingroom', op: '/ops', reveal: '/reveal', result: '/result' }
 // Identical prefill to CreateRoomView: restore stored creds verbatim; only an
 // absent slot gets a fresh random value, so a returning player is never given
 // a new identity. Values persist only on a successful join (see submit).
@@ -45,7 +46,10 @@ async function submit() {
   busy.value = false
   if (!res.ok) { err.value = errorText(res.error); return }
   setAuth({ roomid: roomid.value, userid: userid.value, userpsw: userpsw.value, avatar: res.avatar })
-  router.push('/waitingroom')
+  // Route by the game's current phase (from the join response) so a returning
+  // player lands directly where the game is — e.g. straight on the result page —
+  // instead of being dumped into the waiting room.
+  router.push(PHASE_ROUTE[res.phase] || '/waitingroom')
 }
 </script>
 

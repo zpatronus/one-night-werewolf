@@ -65,7 +65,7 @@ function opSentence(op) {
     case 'troublemaker':
       return `🃏 捣蛋鬼 ${op.troublemaker || '（玩家未知）'} 交换 ${op.a} 与 ${op.b} → ${op.a} 现持 ${peek(op.a_new)}，${op.b} 现持 ${peek(op.b_new)}`
     case 'insomniac':
-      return `🌙 ${op.insomniac || '失眠者'} 确认自己是 ${peek(op.card)}`
+      return `🌙 失眠者 ${op.insomniac || ''} 确认自己是 ${peek(op.card)}`
     default:
       return ''
   }
@@ -107,7 +107,7 @@ const voteChart = computed(() => {
         </div>
         <div class="summary-tile" :class="me ? (me.won ? 'win' : 'lose') : ''">
           <div class="summary-label">你的结果</div>
-          <div class="summary-value">{{ me ? (me.won ? '你胜利了 ✔' : '你落败了 ✘') : '—' }}</div>
+          <div class="summary-value">{{ me ? (me.won ? '你胜利了 ✔' : '你失败了 ✘') : '—' }}</div>
         </div>
       </div>
     </div>

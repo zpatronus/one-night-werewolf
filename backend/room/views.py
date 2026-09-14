@@ -258,7 +258,13 @@ def join_room(request):
                 player = Player.objects.create(
                     room=room, userid=c["userid"], userpsw=c["userpsw"], avatar=avatar,
                 )
-        return JsonResponse({"ok": True, "avatar": player.avatar})
+        # Return the live room status so the client can route straight to the
+        # right view (op/reveal/result) on a rejoin, instead of always glancing
+        # at the waiting room first. ``_room_status`` already carries ``phase``
+        # plus the full phase payload; avatar is patched on for the client.
+        payload = _room_status(room, player)
+        payload["avatar"] = player.avatar
+        return JsonResponse(payload)
     except ApiError as e:
         return _err(e.code)
 

@@ -92,7 +92,7 @@ function describe() {
     case 'troublemaker':
       return `你是捣蛋鬼。你选择交换 ${info.target} 与 ${info.target2} 的牌。`
     case 'insomniac':
-      return `你是失眠者，睡醒后回想了自己的身份。`
+      return `你是失眠者，你在熬夜中知晓了自己的最终身份。`
     case 'villager':
       return `你是村民，夜里没有行动。`
     default:
