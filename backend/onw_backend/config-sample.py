@@ -2,9 +2,9 @@
 DEBUG = True
 SECRET_KEY = "REPLACE_ME"
 
-# nginx strips the site prefix and forwards /api/... to Django, so the
-# backend URLconf always serves under /api/. Leave URL_PREFIX "" unless you
-# mount the Django URLconf itself under a sub-path.
+# Django is served under a path prefix (e.g. /onw/) via FORCE_SCRIPT_NAME, and
+# nginx proxies the full /onw/api/... through unchanged (does NOT strip it).
+# Dev/localhost: "" (no prefix). Production sub-path: "/onw".
 URL_PREFIX = ""
 
 # Dev: frontend Vite on :5173 calls backend :8000 cross-origin.

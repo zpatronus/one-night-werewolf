@@ -20,6 +20,11 @@ SECRET_KEY = config.SECRET_KEY
 DEBUG = config.DEBUG
 ALLOWED_HOSTS = config.ALLOWED_HOSTS
 
+# Served behind a path prefix (/onw/). Making Django aware of it keeps all
+# reverse()/redirect/admin URLs prefixed consistently; nginx then proxies the
+# full /onw/api/... through instead of stripping it. Empty on dev/localhost.
+FORCE_SCRIPT_NAME = config.URL_PREFIX or ''
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
