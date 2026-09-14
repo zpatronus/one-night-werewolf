@@ -7,4 +7,5 @@ requires-python = ">=3.12"
 dependencies = [
     "django>=6.1.1",
     "django-cors-headers>=4.9.0",
+    "gunicorn>=26.2.0",
 ]
