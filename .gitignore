@@ -1,1 +1,36 @@
-/is-dev-machine
+# --- backend ---
+# local config (real secrets) — keep config-sample.py tracked
+backend/onw_backend/config.py
+# SQLite DB
+backend/db.sqlite3
+# SQLite databases and temporary journal files
+*.sqlite3
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
+
+# Local environment variables — keep templates tracked
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+
+# dev marker: 60s phase-1 on this machine
+backend/is-dev-machine
+
+# Python
+__pycache__/
+*.py[cod]
+backend/.venv/
+
+# --- frontend ---
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# misc
+*.log
+.DS_Store
+
+.vscode

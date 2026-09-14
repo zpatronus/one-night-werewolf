@@ -1,3 +1,5 @@
+# If you're an AI agent, read the view-design.md and endpoint-design.md instead
+
 # 一夜狼人 (One-Night Werewolf) — 设计文档
 
 > 目标：复刻 [God of Avalon](https://github.com/zpatronus) 的**基础设施**（房间/用户名/密码/头像、路由、CSRF、轮询等）保持**一模一样**，在其上实现一个《一夜狼人》的对局逻辑。
@@ -27,15 +29,15 @@
 
 ### 1.1 角色与阵营
 
-| 角色 code | 名称 | 阵营 | 夜间能力 | 真实夜间行动（阶段一选目标，结果阶段二揭晓） |
-|---|---|---|---|---|
-| `werewolf` | 狼人🐺 | 狼人 | 与同伴互认；**独狼**可看中央 3 张中的 1 张 | 独狼：选看哪张中央牌 |
-| `minion` | 爪牙💀 | 狼人 | 看狼人是谁（不告诉狼人自己） | 无（阶段一发随机假界面，人人照点） |
-| `seer` | 预言家🔮 | 村民 | 看 1 名玩家的牌，**或**看中央 2 张牌 | 选看哪人 / 哪两张中央 |
-| `robber` | 强盗🥷 | 村民 | 与 1 名玩家换牌，换后看自己的新牌 | 选与谁换 |
-| `troublemaker` | 捣蛋鬼🃏 | 村民 | 交换另外两名玩家的牌（不看牌、不换自己） | 选要交换哪两人 |
-| `insomniac` | 失眠者🌙 | 村民 | 结算**最后**再确认一次自己的牌 | 无（阶段一发随机假界面，人人照点） |
-| `villager` | 村民👤 | 村民 | 无 | 无（阶段一发随机假界面，人人照点） |
+| 角色 code      | 名称    | 阵营 | 夜间能力                                   | 真实夜间行动（阶段一选目标，结果阶段二揭晓） |
+| -------------- | ------- | ---- | ------------------------------------------ | -------------------------------------------- |
+| `werewolf`     | 狼人🐺   | 狼人 | 与同伴互认；**独狼**可看中央 3 张中的 1 张 | 独狼：选看哪张中央牌                         |
+| `minion`       | 爪牙💀   | 狼人 | 看狼人是谁（不告诉狼人自己）               | 无（阶段一发随机假界面，人人照点）           |
+| `seer`         | 预言家🔮 | 村民 | 看 1 名玩家的牌，**或**看中央 2 张牌       | 选看哪人 / 哪两张中央                        |
+| `robber`       | 强盗🥷   | 村民 | 与 1 名玩家换牌，换后看自己的新牌          | 选与谁换                                     |
+| `troublemaker` | 捣蛋鬼🃏 | 村民 | 交换另外两名玩家的牌（不看牌、不换自己）   | 选要交换哪两人                               |
+| `insomniac`    | 失眠者🌙 | 村民 | 结算**最后**再确认一次自己的牌             | 无（阶段一发随机假界面，人人照点）           |
+| `villager`     | 村民👤   | 村民 | 无                                         | 无（阶段一发随机假界面，人人照点）           |
 
 ### 1.2 获胜条件（以**最终身份**为准，即结算后换到谁手上的牌）
 
@@ -50,15 +52,15 @@
 
 ## 2. 页面 / 路由总览
 
-| 路由 | View | 说明 | 参考资料 |
-|---|---|---|---|
-| `/` | `HomeView` | 主页 + 玩法介绍 + 更新日志 | 与阿瓦隆 `HomeView.vue` 一模一样 |
-| `/createroom` | `CreateRoomView` | 房间ID + 用户名 + 密码 + 头像；**创建者即房主** | 与阿瓦隆 Create/Join 合并体的改造版 |
-| `/joinroom` | `JoinRoomView` | 房间ID + 用户名 + 密码 + 头像（加入/登录已有玩家） | 与阿瓦隆 `JoinRoomView.vue` 一模一样 |
-| `/waitingroom` | `WaitingRoomView` | 房间玩家列表；**房主可配置板子并开始**；非房主只读并等待 | 阿瓦隆 `WaitingRoomView.vue` + 板子配置 |
-| `/ops` | `OperationView` | **阶段一**：15s 操作（所有人低头操作） | 新增（对局三视图之一） |
-| `/reveal` | `RevealView` | **阶段二**：一次性揭晓真实身份与操作结果 + 提供投票控件（一人一票） | 新增 |
-| `/result` | `ResultView` | **阶段三**：全员投完后的结果揭示 | 新增 |
+| 路由           | View              | 说明                                                                | 参考资料                                |
+| -------------- | ----------------- | ------------------------------------------------------------------- | --------------------------------------- |
+| `/`            | `HomeView`        | 主页 + 玩法介绍 + 更新日志                                          | 与阿瓦隆 `HomeView.vue` 一模一样        |
+| `/createroom`  | `CreateRoomView`  | 房间ID + 用户名 + 密码 + 头像；**创建者即房主**                     | 与阿瓦隆 Create/Join 合并体的改造版     |
+| `/joinroom`    | `JoinRoomView`    | 房间ID + 用户名 + 密码 + 头像（加入/登录已有玩家）                  | 与阿瓦隆 `JoinRoomView.vue` 一模一样    |
+| `/waitingroom` | `WaitingRoomView` | 房间玩家列表；**房主可配置板子并开始**；非房主只读并等待            | 阿瓦隆 `WaitingRoomView.vue` + 板子配置 |
+| `/ops`         | `OperationView`   | **阶段一**：15s 操作（所有人低头操作）                              | 新增（对局三视图之一）                  |
+| `/reveal`      | `RevealView`      | **阶段二**：一次性揭晓真实身份与操作结果 + 提供投票控件（一人一票） | 新增                                    |
+| `/result`      | `ResultView`      | **阶段三**：全员投完后的结果揭示                                    | 新增                                    |
 
 > 对局的三阶段坚持写成 **3 个独立 View**（`/ops`、`/reveal`、`/result`），由服务端 `room_state` 的 `phase` 字段驱动进入哪个 View；前端每 2s 轮询 `room_state` 自动跳转，与阿瓦隆 waiting→inroom 的跳转方式完全一致。投票动作发生在阶段二（`/reveal`）界面内。
 
@@ -202,33 +204,33 @@ class Player:
 
 板子是一张 `{role_code: count}` 的**份数映射**，代表整副牌组；**总牌数 = 玩家人数 + 3 张中央牌** = 每位玩家 1 张 + 中央 3 张。房主可自由设置每种角色的份数。下面是各人数的默认份数映射（`villager` 份数 = 总牌数 − 其它角色份数）：
 
-| 人数 | 默认板子 `{role: count}` |
-|---|---|
-| 3 | `werewolf:1, seer:1, robber:1, troublemaker:1, insomniac:1, villager:1`（共 6 = 3+3）|
-| 4 | `werewolf:2, seer:1, robber:1, troublemaker:1, insomniac:1, villager:1`（共 7 = 4+3）|
-| 5 | `werewolf:2, seer:1, robber:1, troublemaker:1, insomniac:1, villager:2`（共 8 = 5+3）|
-| 6 | `werewolf:2, seer:1, robber:1, troublemaker:1, insomniac:1, villager:3`（共 9 = 6+3）|
-| 7 | `werewolf:2, seer:1, robber:1, troublemaker:1, insomniac:1, villager:4`（共 10 = 7+3）|
-| 8 | `werewolf:2, seer:1, robber:1, troublemaker:1, insomniac:1, villager:5`（共 11 = 8+3）|
-| 9 | `werewolf:2, seer:1, robber:1, troublemaker:1, insomniac:1, villager:6`（共 12 = 9+3）|
-| 10 | `werewolf:2, seer:1, robber:1, troublemaker:1, insomniac:1, villager:7`（共 13 = 10+3）|
+| 人数 | 默认板子 `{role: count}`                                                                |
+| ---- | --------------------------------------------------------------------------------------- |
+| 3    | `werewolf:1, seer:1, robber:1, troublemaker:1, insomniac:1, villager:1`（共 6 = 3+3）   |
+| 4    | `werewolf:2, seer:1, robber:1, troublemaker:1, insomniac:1, villager:1`（共 7 = 4+3）   |
+| 5    | `werewolf:2, seer:1, robber:1, troublemaker:1, insomniac:1, villager:2`（共 8 = 5+3）   |
+| 6    | `werewolf:2, seer:1, robber:1, troublemaker:1, insomniac:1, villager:3`（共 9 = 6+3）   |
+| 7    | `werewolf:2, seer:1, robber:1, troublemaker:1, insomniac:1, villager:4`（共 10 = 7+3）  |
+| 8    | `werewolf:2, seer:1, robber:1, troublemaker:1, insomniac:1, villager:5`（共 11 = 8+3）  |
+| 9    | `werewolf:2, seer:1, robber:1, troublemaker:1, insomniac:1, villager:6`（共 12 = 9+3）  |
+| 10   | `werewolf:2, seer:1, robber:1, troublemaker:1, insomniac:1, villager:7`（共 13 = 10+3） |
 
 房主在 waiting 房间可对**每种角色**的份数做增减（`0` 表示不下），自由混入 `minion`（爪牙）等；配置以这份映射存库并随 `board:<人数>` 缓存在本地。合法性只在 `start_game` 边界校验（Σ计数 == 人数+3）。
 
 ### 6.4 API 一览
 
-| Verb | Path | Body | 说明 |
-|---|---|---|---|
-| GET | `/api/csrf/` | — | 取 CSRF token（唯一公开 GET，无凭据） |
-| POST | `/api/create_room/` | `{roomid,userid,userpsw,avatar}` | 建房 + 创建房主 |
-| POST | `/api/join_room/` | `{roomid,userid,userpsw,avatar}` | 加入/登录玩家 |
-| POST | `/api/set_board/` | `{roomid,userid,userpsw,board:{role_code:count}}` | （房主）配置每种角色份数；waiting 阶段不校验；**响应回传 DB 上已保存的 `board`（与 `/api/room_state/`@waiting 同形状），供房主更新本地值** |
-| POST | `/api/start_game/` | `{roomid,userid,userpsw}` | （房主）发初始牌 + 设中央 + `phase=op` |
-| POST | `/api/night_action/` | `{roomid,userid,userpsw,choice}` | 阶段一提交操作（响应为 `phase=op` 的 `/api/room_state/` payload；`phase` 已非 `op` 时忽略此写） |
-| POST | `/api/room_state/` | `{roomid,userid,userpsw}` | **唯一的轮询端点**：`phase` + 该 phase 的 payload（见下） |
-| POST | `/api/reveal/` | `{roomid,userid,userpsw}` | 阶段二**一次性**取结果（幂等；仅在 `phase=reveal` 时返回正文，不用于轮询） |
-| POST | `/api/vote/` | `{roomid,userid,userpsw,target}` | （阶段二）投票处决对象（`""` 弃权）；按 DB 条件写，**当且仅当 `phase=reveal` 且本人未投**才落库 |
-| POST | `/api/result/` | `{roomid,userid,userpsw}` | 全员最终身份 + 被投出对象 + 胜负 |
+| Verb | Path                 | Body                                              | 说明                                                                                                                                       |
+| ---- | -------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET  | `/api/csrf/`         | —                                                 | 取 CSRF token（唯一公开 GET，无凭据）                                                                                                      |
+| POST | `/api/create_room/`  | `{roomid,userid,userpsw,avatar}`                  | 建房 + 创建房主                                                                                                                            |
+| POST | `/api/join_room/`    | `{roomid,userid,userpsw,avatar}`                  | 加入/登录玩家                                                                                                                              |
+| POST | `/api/set_board/`    | `{roomid,userid,userpsw,board:{role_code:count}}` | （房主）配置每种角色份数；waiting 阶段不校验；**响应回传 DB 上已保存的 `board`（与 `/api/room_state/`@waiting 同形状），供房主更新本地值** |
+| POST | `/api/start_game/`   | `{roomid,userid,userpsw}`                         | （房主）发初始牌 + 设中央 + `phase=op`                                                                                                     |
+| POST | `/api/night_action/` | `{roomid,userid,userpsw,choice}`                  | 阶段一提交操作（响应为 `phase=op` 的 `/api/room_state/` payload；`phase` 已非 `op` 时忽略此写）                                            |
+| POST | `/api/room_state/`   | `{roomid,userid,userpsw}`                         | **唯一的轮询端点**：`phase` + 该 phase 的 payload（见下）                                                                                  |
+| POST | `/api/reveal/`       | `{roomid,userid,userpsw}`                         | 阶段二**一次性**取结果（幂等；仅在 `phase=reveal` 时返回正文，不用于轮询）                                                                 |
+| POST | `/api/vote/`         | `{roomid,userid,userpsw,target}`                  | （阶段二）投票处决对象（`""` 弃权）；按 DB 条件写，**当且仅当 `phase=reveal` 且本人未投**才落库                                            |
+| POST | `/api/result/`       | `{roomid,userid,userpsw}`                         | 全员最终身份 + 被投出对象 + 胜负                                                                                                           |
 
 **`/api/room_state/` 按 `phase` 返回不同 payload**（waiting/op/reveal/result 四态的前端唯一轮询与路由依据，详见 view-design.md §0.1）：
 
@@ -246,6 +248,7 @@ class Player:
 **核心不变式：DB 是唯一真值来源，每个阶段一写操作都以 `room.phase == 'op'` 为前置条件。** 由此自动得到全部鲁棒性：
 
 - **统一响应格式**：`/api/night_action/`（提交）与 `phase='op'` 时的 `/api/room_state/`（轮询）返回**完全相同的结构**，服务端视为权威：
+
   ```json
   {
     "ok": true,
@@ -257,6 +260,7 @@ class Player:
     "deadline_ms": 7000
   }
   ```
+
   - 因为轮询和提交同格式，**提交丢了也没关系**：下一次轮询直接把我当前操作回显到 UI，我重交即可。
 - **默认随机操作**：阶段一结束时，**从未提交**（离线/丢包/选择不做）的玩家，服务端在 `op→reveal` 切换时为ta**随机指定默认操作**，随正常操作一起结算。这是 best-effort，`submitted` 恒为 `false`。
 - **允许重报覆盖**：阶段一期间可多次提交，后者覆盖前者（best effort）。离线/反复改选都无妨。
@@ -275,6 +279,7 @@ class Player:
 ### 7.1 OperationView —— 阶段一（15 秒）
 
 **页面职责：让每—个人都低着头在屏幕上“做操作”（人人必点），看到自己正在操作的身份、做出真实选择，但不显示任何结果，倒计时，收集选择。**
+
 - **顶部**：倒计时圈（15→0）、已提交人数 N/总人数。
 - **身份伪装逻辑**（核心，杜绝场外；**人人必点**）：
   - 你的真实身份**有真实夜间行动**（独狼可选看中央牌 / 预言家 / 强盗 / 捣蛋鬼）→ 分配**该身份的操作界面**，你会看到自己就是这个身份，并做出**真实选择**：真捣蛋鬼在阶段一就看到“你是捣蛋鬼，请选两张”。
@@ -291,6 +296,7 @@ class Player:
 ### 7.2 RevealView —— 阶段二（揭晓 + 投票）
 
 **页面职责：进入阶段二即刻拉取一次真实的结算结果，并提供一个投票控件；可随时投、每人只投一次；阶段二轮询等待全员投完。**
+
 - 进入时**一次性** `POST /api/reveal/` 拿到本玩家的**唯一正文应答**（幂等，之后不再重拉揭晓）。
 - **你看到的信息**（按身份）：
   - 狼人/爪牙：显示狼队友名单（爪牙还提示“狼人不知道我是爪牙”）。
@@ -306,6 +312,7 @@ class Player:
 ### 7.3 ResultView —— 阶段三（结果揭示）
 
 **页面职责：全员投完后展示最终结果。**
+
 - `POST /api/result/` 展示：
   - **被投出处决者** 的最终身份。
   - 所有人的最终身份卡（公开，因为已揭晓）。
@@ -329,14 +336,14 @@ class Player:
 
 ## 9. localStorage 键清单
 
-| 键 | 用途 | 参考 |
-|---|---|---|
-| `roomId` | 记住房间ID | 阿瓦隆 |
-| `userId` | 记住玩家ID | 阿瓦隆 |
-| `userPsw` | 记住玩家密码 | 阿瓦隆 |
-| `avatar` | 当前玩家头像文件名 | 阿瓦隆 `avatar.js` |
-| `avatarFile:<name>` | SVG 内容缓存 | 阿瓦隆 `avatar.js` |
-| `board:5` … `board:10` | 每个玩家人数对应的板子配置（房主） | 新增 |
+| 键                     | 用途                               | 参考               |
+| ---------------------- | ---------------------------------- | ------------------ |
+| `roomId`               | 记住房间ID                         | 阿瓦隆             |
+| `userId`               | 记住玩家ID                         | 阿瓦隆             |
+| `userPsw`              | 记住玩家密码                       | 阿瓦隆             |
+| `avatar`               | 当前玩家头像文件名                 | 阿瓦隆 `avatar.js` |
+| `avatarFile:<name>`    | SVG 内容缓存                       | 阿瓦隆 `avatar.js` |
+| `board:5` … `board:10` | 每个玩家人数对应的板子配置（房主） | 新增               |
 
 ---
 
