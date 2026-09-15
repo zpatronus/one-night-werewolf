@@ -79,7 +79,9 @@ function describe() {
       }
       return `你是狼人，狼队友：${(info.teammates || []).join('、')}。`
     case 'minion':
-      return `你是爪牙。狼人是：${(info.teammates || []).join('、')}。`
+      return info.teammates?.length
+        ? `你是爪牙。夜晚开始时，狼人玩家是：${info.teammates.join('、')}。`
+        : '你是爪牙。夜晚开始时，场上没有狼人玩家。'
     case 'seer':
       if (info.center_picks && info.center_picks.length) {
         const items = info.center_picks.map((idx, k) => `中央第 ${idx + 1} 张`)
