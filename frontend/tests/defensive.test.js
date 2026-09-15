@@ -35,6 +35,27 @@ function load(file, overrides = {}) {
   return { instance, state, mounted, unmounted, applied, watchers }
 }
 
+test('ops countdown uses the server end time and waits for phase transition at zero', () => {
+  const { instance: c, state } = load('views/OperationView.vue')
+  c.now.value = 100000
+  state.value = { phase: 'op', op_end_time_ms: 147030 }
+  assert.equal(c.countdown.value, '47:03')
+  c.now.value = 146020
+  assert.equal(c.countdown.value, '1:01')
+  c.now.value = 147029
+  assert.equal(c.countdown.value, '0:01')
+  c.now.value = 147030
+  assert.equal(c.countdown.value, '跳转中...')
+  c.now.value = 150000
+  assert.equal(c.countdown.value, '跳转中...')
+})
+
+test('minion replay explicitly reports no werewolves', () => {
+  const { instance: c } = load('views/ResultView.vue')
+  assert.equal(c.opSentence({ type: 'minion', minion: 'A', wolves: [] }), '💀 爪牙 A 得知场上没有狼人。')
+  assert.equal(c.opSentence({ type: 'minion', minion: 'A', wolves: ['B', 'C'] }), '💀 爪牙 A 得知了狼人是：B、C')
+})
+
 test('night action can retry after failure; seer needs exactly two centers', async () => {
   let calls = 0
   const { instance: c, state } = load('views/OperationView.vue', {

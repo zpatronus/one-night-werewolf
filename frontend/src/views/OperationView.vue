@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { post } from '../api'
 import { creds } from '../store'
 import { useRoomState } from '../useRoomState'
@@ -14,6 +14,21 @@ const mode = ref('player')  // seer toggle: 'player' | 'center'
 const confirmed = ref(false)
 const err = ref('')
 const busy = ref(false)
+const now = ref(Date.now())
+let countdownTimer
+onMounted(() => {
+  now.value = Date.now()
+  countdownTimer = setInterval(() => { now.value = Date.now() }, 10)
+})
+onUnmounted(() => clearInterval(countdownTimer))
+
+const countdown = computed(() => {
+  const end = state.value?.op_end_time_ms
+  if (!Number.isFinite(end)) return '加载中...'
+  const hundredths = Math.ceil(Math.max(0, end - now.value) / 10)
+  if (hundredths === 0) return '跳转中...'
+  return `${Math.floor(hundredths / 100)}:${String(hundredths % 100).padStart(2, '0')}`
+})
 
 const role = computed(() => state.value?.role)
 const users = computed(() => sortPlayers(creds().roomid, state.value?.users || []))
@@ -181,7 +196,7 @@ async function submit() {
 <template>
   <div v-if="state">
     <div class="container countdown-ring">
-      <div class="ring">{{ state.deadline_ms > 0 ? Math.ceil(state.deadline_ms / 1000) : 0 }}</div>
+      <div class="ring">{{ countdown }}</div>
       <div class="muted">剩余时间</div>
     </div>
 

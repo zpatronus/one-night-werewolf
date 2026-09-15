@@ -47,7 +47,9 @@ function opSentence(op) {
     case 'lone_wolf':
       return `🐺 独狼 ${op.lone_wolf || '（?）'} 窥视中央第 ${(op.center ?? -1) + 1} 张 → ${peek(op.card)}`
     case 'minion':
-      return `💀 爪牙 ${op.minion} 得知了狼人是：${(op.wolves || []).join('、')}`
+      return op.wolves?.length
+        ? `💀 爪牙 ${op.minion} 得知了狼人是：${op.wolves.join('、')}`
+        : `💀 爪牙 ${op.minion} 得知场上没有狼人。`
     case 'seer': {
       const who = op.seer || '预言家'
       if (Array.isArray(op.center_picks) && op.center_picks.length) {

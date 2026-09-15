@@ -113,6 +113,8 @@ def _op_payload(room, player, deadline):
         "submitted_count": submitted,
         "total_count": total,
         "deadline_ms": deadline,
+        "op_end_time_ms": int((room.op_start_time + OPS_DURATION).timestamp() * 1000)
+        if room.op_start_time else None,
         "users": users,
     }
 

@@ -62,6 +62,18 @@ class GameChecks(TestCase):
             self.assertEqual(self.call(views.night_action, choice=choice)['error'], 'bad_choice')
         self.assertTrue(self.call(views.night_action, choice={'type':'wolf','target':'center_0'})['ok'])
 
+    def test_op_end_time_uses_configured_duration_and_stays_fixed(self):
+        with patch.object(views, 'OPS_DURATION', timedelta(seconds=47)):
+            expected = int((self.room.op_start_time + timedelta(seconds=47)).timestamp() * 1000)
+            first = self.call(views.room_state)
+            later = self.room.op_start_time + timedelta(seconds=5)
+            with patch.object(views.timezone, 'now', return_value=later):
+                polled = self.call(views.room_state)
+                submitted = self.call(views.night_action, choice={'type': 'wolf', 'target': 'center_0'})
+            for payload in (first, polled, submitted):
+                self.assertEqual(payload['op_end_time_ms'], expected)
+            self.assertLess(polled['deadline_ms'], first['deadline_ms'])
+
     def test_seer_requires_two_distinct_integer_indices(self):
         p = self.players[0]; p.role = p.fake_role = 'seer'; p.save()
         for picks in ([0], [0,0], [0,3], [-1,1], [True,1], [0,1,2], ['0',1]):
