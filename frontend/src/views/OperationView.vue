@@ -27,7 +27,7 @@ const countdown = computed(() => {
   if (!Number.isFinite(end)) return '加载中...'
   const hundredths = Math.ceil(Math.max(0, end - now.value) / 10)
   if (hundredths === 0) return '跳转中...'
-  return `${Math.floor(hundredths / 100)}:${String(hundredths % 100).padStart(2, '0')}`
+  return `${Math.floor(hundredths / 100)}.${String(hundredths % 100).padStart(2, '0')}`
 })
 
 const role = computed(() => state.value?.role)

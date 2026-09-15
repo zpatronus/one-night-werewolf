@@ -116,6 +116,7 @@ async function vote() {
 
 <template>
   <div v-if="me">
+    <h1 class="subtitle">讨论与投票</h1>
     <div class="container role-banner">
       <button type="button" class="toggle-role" @click="showRole = !showRole">
         {{ showRole ? '👁 隐藏身份' : '🔒 身份已隐藏' }}
