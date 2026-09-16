@@ -3,8 +3,8 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { post } from '../api'
 import { creds } from '../store'
 import { useRoomState } from '../useRoomState'
-import { roleName, roleIcon, errorText } from '../gameConfig'
-import { avatarUrl } from '../avatar'
+import { roleName, roleIcon, errorText, ROLE_ORDER } from '../gameConfig'
+import { avatarUrl, getMyAvatar } from '../avatar'
 import { sortPlayers } from '../playerOrder'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
@@ -36,6 +36,13 @@ onMounted(loadReveal)
 
 const users = computed(() => sortPlayers(creds().roomid, (me.value?.users || []).filter(u => u.userid !== creds().userid)))
 const voted = computed(() => state.value?.voted ?? me.value?.voted)
+// The board (template) and room info are one-shot from /reveal, never polled.
+const boardChips = computed(() =>
+  ROLE_ORDER.filter((r) => (me.value?.board?.[r] || 0) > 0))
+const meCard = computed(() => ({
+  ...(me.value?.me || {}),
+  avatar: avatarUrl(me.value?.me?.avatar || getMyAvatar()),
+}))
 
 // After a refresh/rejoin the local selection is lost; re-highlight the caller's
 // own vote from the server. Only hydrate once we actually voted (vote_target
@@ -119,6 +126,30 @@ async function vote() {
 <template>
   <div v-if="me">
     <h1 class="subtitle">讨论与投票</h1>
+
+    <!-- One-time context (from /reveal, not the poll): who I am + room + template. -->
+    <div class="container room-info">
+      <div class="me-card">
+        <img class="me-avatar" :src="meCard.avatar" :alt="meCard.userid" />
+        <span class="me-name">{{ meCard.userid }}</span>
+      </div>
+      <div class="info-grid">
+        <div class="info-row">
+          <span class="info-label">房间ID</span>
+          <span class="info-value">{{ me.roomid }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">玩家数量</span>
+          <span class="info-value">{{ me.user_count }}</span>
+        </div>
+      </div>
+      <div class="board current-template">
+        <span v-for="role in boardChips" :key="role" class="board-chip">
+          {{ roleIcon(role) }} {{ roleName(role) }} ×{{ me.board[role] }}
+        </span>
+      </div>
+    </div>
+
     <div class="container role-banner">
       <button type="button" class="toggle-role" @click="showRole = !showRole">
         {{ showRole ? '👁 隐藏身份' : '🔒 身份已隐藏' }}
@@ -239,6 +270,48 @@ async function vote() {
   color: var(--accent);
   font-weight: 800;
   font-size: 0.8rem;
+}
+.room-info {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.me-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.me-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--accent);
+}
+.me-name {
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+.board {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(229, 189, 84, 0.05);
+  border: 1px dashed rgba(229, 189, 84, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+.board-chip {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
 }
 .final-role {
   display: inline-block;

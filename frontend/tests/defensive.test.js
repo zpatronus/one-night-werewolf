@@ -3,22 +3,27 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { compileScript, parse } from '@vue/compiler-sfc'
 import { transformSync } from 'esbuild'
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, watch, nextTick } from 'vue'
 import { calculateResult } from '../src/result.js'
 
 // Execute the actual component setup with mocked HTTP/lifecycle boundaries.
 function load(file, overrides = {}) {
   const mounted = [], unmounted = [], watchers = []
+  if (file === 'views/WaitingRoomView.vue' && !overrides.keepStorage) {
+    const saved = new Map()
+    globalThis.localStorage = { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value) }
+  }
   const state = ref(null)
   const applied = []
   const modules = {
-    vue: { ref, computed, reactive, watch: (_, callback) => watchers.push(callback), onMounted: f => mounted.push(f), onUnmounted: f => unmounted.push(f) },
+    vue: { ref, computed, reactive, watch: (source, callback, options) => { watchers.push(callback); return watch(source, callback, options) }, onMounted: f => mounted.push(f), onUnmounted: f => unmounted.push(f) },
     'vue-router': { useRouter: () => ({ push() {}, currentRoute: ref({ path: '/ops' }) }) },
     '../result': { calculateResult },
     '../api': { post: async () => ({ ok: true }) },
     '../store': { creds: () => ({ roomid: 'R', userid: 'A' }) },
     '../useRoomState': { useRoomState: () => ({ state, error: ref(null), poll: async () => ({ ok: true, phase: 'reveal' }), applyState: s => { state.value = s; applied.push(s) } }) },
     '../gameConfig': { roleName: x => x, roleIcon: () => '', errorText: x => x, sortPlayers: (_, x) => x, ROLE_ORDER: ['werewolf','seer','robber','troublemaker','villager'], boardTemplate: () => ({ villager: 6 }) },
+    '../components/ConfirmDialog.vue': {},
     '../avatar': { avatarUrl() {}, getMyAvatar() {} },
     '../playerOrder': { sortPlayers: (_, x) => x },
     ...overrides,
@@ -110,17 +115,17 @@ test('polls are deduplicated and old responses cannot override mutation or unmou
 
 test('board edits stay private through polling and only explicit submit saves them', async () => {
   const calls = []
-  const { instance: c, state, watchers } = load('views/WaitingRoomView.vue', {
+  const { instance: c, state } = load('views/WaitingRoomView.vue', {
     '../api': { post: async (path, body) => {
       calls.push([path, body.board]); return { ok: true, board: body.board, phase: 'op' }
     } },
   })
   state.value = { ok: true, phase: 'waiting', is_owner: true, userCount: 3, board: { villager: 6 } }
-  watchers[0](state.value)
+  await nextTick()
   c.adjust('villager', -1); c.adjust('werewolf', 1)
   assert.equal(calls.length, 0)
   assert.deepEqual(c.currentBoard(), { villager: 6 })
-  watchers[0](state.value)
+  await nextTick()
   assert.deepEqual(c.board.value, { villager: 5, werewolf: 1 })
   await c.start(); assert.equal(calls.length, 0)
   await c.saveBoard()
@@ -131,11 +136,11 @@ test('board edits stay private through polling and only explicit submit saves th
 
 test('failed template submission keeps draft and blocks start', async () => {
   let calls = 0
-  const { instance: c, state, watchers } = load('views/WaitingRoomView.vue', {
+  const { instance: c, state } = load('views/WaitingRoomView.vue', {
     '../api': { post: async () => { calls++; return { ok: false, error: 'network_error' } } },
   })
   state.value = { phase: 'waiting', is_owner: true, userCount: 3, board: { villager: 6 } }
-  watchers[0](state.value)
+  await nextTick()
   c.adjust('villager', -1); c.adjust('werewolf', 1)
   await c.saveBoard(); await c.start()
   assert.equal(calls, 1)
@@ -198,11 +203,33 @@ test('wolf and seer see the same ordered center card in replay', () => {
 })
 
 
-test('cached templates never override the submitted room template', () => {
-  globalThis.localStorage = { getItem: () => '{"werewolf":6}', setItem() {} }
-  const { instance: c, watchers } = load('views/WaitingRoomView.vue')
-  watchers[0]({ phase: 'waiting', userCount: 3, board: { villager: 6 } })
-  assert.deepEqual(c.board.value, { villager: 6 })
+test('local template survives room updates, joins, submission responses and remounts', async () => {
+  const { instance: c, state } = load('views/WaitingRoomView.vue', {
+    '../api': { post: async () => ({ ok: true, board: { villager: 99 } }) },
+  })
+  const local = { ...c.board.value }
+  state.value = { phase: 'waiting', is_owner: true, userCount: 3, board: { werewolf: 6 } }
+  await nextTick()
+  assert.deepEqual(c.board.value, local)
+  c.adjust('villager', -1)
+  c.adjust('werewolf', 1)
+  const draft = { ...c.board.value }
+  state.value = { ...state.value, userCount: 4, board: { villager: 7 } }
+  await nextTick()
+  assert.deepEqual(c.board.value, draft)
+  assert.deepEqual(JSON.parse(localStorage.getItem('waitingBoard')), draft)
+  await c.saveBoard()
+  await nextTick()
+  assert.deepEqual(c.board.value, draft)
+  assert.deepEqual(c.currentBoard(), { villager: 99 })
+  // Visiting as a guest must not replace the browser's draft either.
+  state.value = { ...state.value, is_owner: false, board: { seer: 7 } }
+  await nextTick()
+  assert.deepEqual(JSON.parse(localStorage.getItem('waitingBoard')), draft)
+  const { instance: restored } = load('views/WaitingRoomView.vue', { keepStorage: true })
+  for (const role of restored.ROLE_ORDER) {
+    assert.equal(restored.board.value[role] || 0, draft[role] || 0)
+  }
 })
 
 test('pack wolf decoy swaps never affect final roles or replay', () => {

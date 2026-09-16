@@ -122,9 +122,9 @@ def deal(room):
     # Decoy identities come purely from the board template (see fake_pool) —
     # NOT from which roles happened to land in players' hands.
     decoys = fake_pool(board)
-    # Once dealt, the deck composition is derivable from the cards themselves.
-    room.board = {}
-    room.save(update_fields=["center", "board"])
+    # Keep ``room.board`` intact: it's the public template and is still shown
+    # on the reveal page. Phase (not an empty board) tracks game progress.
+    room.save(update_fields=["center"])
 
     lone_wolf = dealt_roles.count("werewolf") == 1
     for p, role in zip(players, dealt_roles):

@@ -406,6 +406,13 @@ def reveal(request):
         return JsonResponse({
             "ok": True,
             "phase": "reveal",
+            # One-shot room + "who am I" context (static, so it lives in this
+            # body rather than the 2s poll): room id, player count, the public
+            # template board, and who *I* am (id + avatar).
+            "roomid": room.roomid,
+            "user_count": room.players.count(),
+            "board": room.board,
+            "me": {"userid": player.userid, "avatar": player.avatar},
             "role": player.role,
             "action_was_fake": player.fake_role is not None,
             # ``display_role`` (the fake operating identity) is intentionally

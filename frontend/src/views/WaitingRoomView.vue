@@ -12,11 +12,10 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 const router = useRouter()
 const { state, applyState } = useRoomState()
 const BOARD_LS_KEY = 'waitingBoard'
-const board = ref(loadSavedBoard())   // {role_code: count}; editable by host
+const board = ref(loadSavedBoard() ?? boardTemplate())   // {role_code: count}; editable by host
 const err = ref('')
 const starting = ref(false)
 const saving = ref(false)
-const draftEdited = ref(false)
 const confirmOpen = ref(false)    // start-confirmation dialog
 
 // The host's board draft persists across refreshes (same pattern as roomId /
@@ -44,9 +43,10 @@ const MAX = 10
 const n = () => state.value?.userCount || 0
 const isHost = () => state.value?.is_owner
 
-// Persist the working board to localStorage on every change so a refresh by the
-// host doesn't drop an un-submitted draft back to the default template.
-watch(board, (b) => saveBoardLS(b), { deep: true })
+// The editor belongs to this browser. Room snapshots and submit responses
+// only update the public board; they must never replace this local draft.
+// Persist immediately so navigating or refreshing cannot lose the latest edit.
+watch(board, (b) => saveBoardLS(b), { deep: true, immediate: true, flush: 'sync' })
 
 // Invite link that drops a friend straight onto the join form with this room
 // already filled in (JoinRoomView reads the `room` query param on mount).
@@ -70,20 +70,6 @@ async function copyInvite() {
   copied.value = true
   setTimeout(() => { copied.value = false }, 2000)
 }
-
-// Polls update the public board without overwriting an unsaved host draft. A
-// host with a locally saved (not-yet-submitted) draft keeps that draft, marked
-// as un-submitted, so a refresh never snaps back to the server default board.
-watch(state, (s) => {
-  if (!s || s.phase !== 'waiting' || draftEdited.value || saving.value) return
-  const saved = loadSavedBoard()
-  if (saved && s.is_owner) {
-    board.value = saved
-    draftEdited.value = true
-  } else {
-    board.value = { ...(s.board ?? boardTemplate()) }
-  }
-}, { immediate: true })
 
 const users = computed(() => sortPlayers(creds().roomid, state.value?.users || []))
 
@@ -120,7 +106,6 @@ function adjust(role, delta) {
   if (delta > 0 && next > maxFor(role)) return   // enforce the hard cap
   b[role] = next
   board.value = b
-  draftEdited.value = true
 }
 
 async function saveBoard() {
@@ -130,8 +115,6 @@ async function saveBoard() {
   try {
     const res = await post('set_board', { ...creds(), board: { ...board.value } })
     if (!res.ok) { err.value = errorText(res.error); return }
-    board.value = { ...res.board }
-    draftEdited.value = false
     // Invalidate any poll started before this save so it cannot undo the update.
     applyState({ ...state.value, board: res.board, ok: true })
   } finally { saving.value = false }
