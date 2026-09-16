@@ -1,6 +1,6 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { post } from '../api'
 import { setAuth } from '../store'
 import { errorText } from '../gameConfig'
@@ -9,6 +9,7 @@ import { prefillIdentity, prefillRoomId, nextRoomId, randomPsw } from '../random
 import AvatarField from './AvatarField.vue'
 
 const router = useRouter()
+const route = useRoute()
 const PHASE_ROUTE = { waiting: '/waitingroom', op: '/ops', reveal: '/reveal', result: '/result' }
 // Identical prefill to CreateRoomView: restore stored creds verbatim; only an
 // absent slot gets a fresh random value, so a returning player is never given
@@ -28,6 +29,16 @@ watch([roomid, userid, userpsw], ([r, u, p]) => {
   localStorage.setItem('roomId', r)
   localStorage.setItem('userId', u)
   localStorage.setItem('userPsw', p)
+})
+
+// An invite link (`/joinroom?room=ABC12`) drops the visitor straight onto this
+// room: override whatever was pre-filled with the shared room id. The watch above
+// persists it to localStorage so it sticks on refresh.
+onMounted(() => {
+  const room = route.query.room
+  if (room !== undefined && /^[A-Za-z0-9]{1,6}$/.test(String(room))) {
+    roomid.value = String(room)
+  }
 })
 
 const canSave = computed(

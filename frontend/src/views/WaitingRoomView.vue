@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { post } from '../api'
-import { creds } from '../store'
+import { base, creds } from '../store'
 import { useRoomState } from '../useRoomState'
 import { errorText, boardTemplate, roleName, roleIcon, ROLE_ORDER } from '../gameConfig'
 import { avatarUrl, getMyAvatar } from '../avatar'
@@ -11,22 +11,78 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const router = useRouter()
 const { state, applyState } = useRoomState()
-const board = ref(null)           // {role_code: count}; editable by host
+const BOARD_LS_KEY = 'waitingBoard'
+const board = ref(loadSavedBoard())   // {role_code: count}; editable by host
 const err = ref('')
 const starting = ref(false)
 const saving = ref(false)
 const draftEdited = ref(false)
 const confirmOpen = ref(false)    // start-confirmation dialog
 
+// The host's board draft persists across refreshes (same pattern as roomId /
+// userid / userPsw in localStorage): load it back if present, and write it back
+// on every change. Only role keys present in ROLE_ORDER are kept, with sane,
+// non-negative integer counts, so a stale or tampered value can't break the UI.
+function loadSavedBoard() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(BOARD_LS_KEY))
+    if (!raw || typeof raw !== 'object') return null
+    const b = {}
+    for (const role of ROLE_ORDER) {
+      const v = Math.floor(Number(raw[role]) || 0)
+      b[role] = Number.isFinite(v) && v > 0 ? v : 0
+    }
+    return b
+  } catch { return null }
+}
+function saveBoardLS(b) {
+  if (b) localStorage.setItem(BOARD_LS_KEY, JSON.stringify(b))
+}
+
 const MIN = 3
 const MAX = 10
 const n = () => state.value?.userCount || 0
 const isHost = () => state.value?.is_owner
 
-// Polls update the public board without overwriting an unsaved host draft.
+// Persist the working board to localStorage on every change so a refresh by the
+// host doesn't drop an un-submitted draft back to the default template.
+watch(board, (b) => saveBoardLS(b), { deep: true })
+
+// Invite link that drops a friend straight onto the join form with this room
+// already filled in (JoinRoomView reads the `room` query param on mount).
+const copied = ref(false)
+function inviteUrl() {
+  return `${window.location.origin}${base}joinroom?room=${encodeURIComponent(creds().roomid)}`
+}
+async function copyInvite() {
+  const url = inviteUrl()
+  try {
+    await navigator.clipboard.writeText(url)
+  } catch {
+    // Non-secure context / older browser fallback.
+    const ta = document.createElement('textarea')
+    ta.value = url
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    document.body.removeChild(ta)
+  }
+  copied.value = true
+  setTimeout(() => { copied.value = false }, 2000)
+}
+
+// Polls update the public board without overwriting an unsaved host draft. A
+// host with a locally saved (not-yet-submitted) draft keeps that draft, marked
+// as un-submitted, so a refresh never snaps back to the server default board.
 watch(state, (s) => {
   if (!s || s.phase !== 'waiting' || draftEdited.value || saving.value) return
-  board.value = { ...(s.board ?? boardTemplate()) }
+  const saved = loadSavedBoard()
+  if (saved && s.is_owner) {
+    board.value = saved
+    draftEdited.value = true
+  } else {
+    board.value = { ...(s.board ?? boardTemplate()) }
+  }
 }, { immediate: true })
 
 const users = computed(() => sortPlayers(creds().roomid, state.value?.users || []))
@@ -138,6 +194,9 @@ watch(liveBoard, (b, prev) => {
           <span class="info-value">{{ n() }}</span>
         </div>
       </div>
+      <button id="copyInviteButton" class="btn-primary btn-block" @click="copyInvite">
+        {{ copied ? '已复制！' : '复制邀请链接' }}
+      </button>
 
       <div class="subtitle">房间内的玩家</div>
       <div class="player-list">
