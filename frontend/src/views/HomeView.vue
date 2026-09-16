@@ -55,7 +55,7 @@
         </section>
       </div>
     </details>
-    <details class="container guide foldable" open>
+    <details class="container guide foldable">
       <summary>流程说明<span class="when-open"> · 收起</span><span class="when-closed"> · 展开</span></summary>
 
       <ol class="phase-flow" aria-label="从身份分配到结算的完整流程">
@@ -106,6 +106,19 @@
         </li>
       </ol>
     </details>
+    <div class="container">
+      <div class="subtitle">源代码、许可证与友链</div>
+      <p>
+        源代码：
+        <a href="https://github.com/zpatronus/one-night-werewolf" target="_blank" rel="noopener">github.com/zpatronus/one-night-werewolf</a>
+      </p>
+      <p>
+        许可证：<a href="https://github.com/zpatronus/one-night-werewolf/blob/main/LICENSE" target="_blank" rel="noopener">AGPL-3.0</a>
+      </p>
+      <p>
+        线上阿瓦隆：<a href="https://goa.zijuny.dev/" target="_blank" rel="noopener">goa.zijuny.dev</a>
+      </p>
+    </div>
     <div class="container">
       <div class="subtitle">更新日志</div>
       <p>
