@@ -1,7 +1,62 @@
 <template>
   <div>
-    <section class="container guide" aria-labelledby="guide-title">
-      <h1 id="guide-title" class="subtitle">流程说明</h1>
+    <details class="container foldable">
+      <summary>游戏规则<span class="when-open"> · 收起</span><span class="when-closed"> · 展开</span></summary>
+      <div class="rules-content">
+        <section class="rule-block">
+          <h2>游戏准备</h2>
+          <p>3–10 人，只进行一夜行动和一轮投票。先选出「人数 + 3」张身份牌，公开本局有哪些身份及各自的张数，再洗匀随机分配。</p>
+          <p>每人一张，剩下三张面朝下放在中央，称为「中央牌」。例如 5 人局用 8 张牌：5 张发给玩家，3 张留在中央。</p>
+          <p>中央牌不属于任何人，可以被能力查验，但不行动、不投票，也不算场上的玩家。因此，牌组里有狼人，不代表一定有玩家是狼人。</p>
+        </section>
+        <section class="rule-block">
+          <h2>角色与夜间能力</h2>
+          <div class="faction-summary">
+            <p><strong>好人阵营</strong>预言家、强盗、捣蛋鬼、失眠者、村民</p>
+            <p><strong>坏人阵营</strong>狼人、爪牙</p>
+          </div>
+          <p class="rules-note">阵营由最终身份决定，换牌可能让玩家改变阵营。</p>
+          <p>夜间能力按下列顺序生效：狼人、爪牙、预言家、强盗、捣蛋鬼、失眠者。村民没有夜间能力。</p>
+          <dl class="role-rules">
+            <div><dt>狼人</dt><dd>知道其他狼人玩家是谁。如果只有一名狼人玩家，他是「独狼」，可查看一张中央牌。</dd></div>
+            <div><dt>爪牙</dt><dd>知道狼人玩家是谁；狼人不会因此知道谁是爪牙。</dd></div>
+            <div><dt>预言家</dt><dd>查看一名其他玩家的牌，或两张中央牌。看到的是换牌前的身份。</dd></div>
+            <div><dt>强盗</dt><dd>与一名其他玩家交换身份牌，并查看自己刚换到的牌。</dd></div>
+            <div><dt>捣蛋鬼</dt><dd>在强盗之后，交换另外两名玩家的牌，不能换自己，也不能查看被换的牌。</dd></div>
+            <div><dt>失眠者</dt><dd>在所有换牌结束后，查看自己的最终身份。</dd></div>
+            <div><dt>村民</dt><dd>没有夜间能力，靠讨论与推理判断身份。</dd></div>
+          </dl>
+          <p class="rules-note">有查牌或换牌能力的角色必须选择目标，不能跳过。只有能力允许查看的牌和身份信息才可获知。</p>
+        </section>
+        <section class="rule-block">
+          <h2>身份交换与阵营</h2>
+          <div class="rule-principle">用最初身份的能力，按最终身份算输赢。</div>
+          <p>夜间能力由最初分到的身份决定。身份牌被交换后，原有能力仍照常执行；获得新身份不会再发动新身份的能力。</p>
+          <p>例如，强盗换到狼人牌后，不会再与狼人互认；若此后未再换牌，最终属于坏人阵营。捣蛋鬼即使先被强盗换走身份牌，仍要执行捣蛋鬼的交换。</p>
+          <p>强盗获知的是交换当时拿到的身份，之后仍可能被捣蛋鬼换走。失眠者在所有交换结束后查看自己的牌；其他玩家不能额外查看最终身份，只能根据夜间信息与讨论进行推断。</p>
+        </section>
+        <section class="rule-block">
+          <h2>讨论与投票</h2>
+          <p>夜晚结束后，玩家根据各自的夜间信息展开讨论，推理每个人最终持有的身份。讨论中可以说真话、隐瞒或撒谎，但不能翻看或展示身份牌来证明自己的说法。</p>
+          <p>每人投一名其他玩家或弃权，不能投自己，投出后不可更改。只投一轮，随后揭开所有身份并判断胜负。</p>
+        </section>
+        <section class="rule-block">
+          <h2>胜负判定</h2>
+          <p>以每位玩家<strong>最终持有的身份牌</strong>划分阵营：狼人、爪牙属于坏人阵营；预言家、强盗、捣蛋鬼、失眠者、村民属于好人阵营。</p>
+          <p>同阵营的所有玩家共同获胜或落败，没有角色以个人存活为获胜条件。即使被处决，只要最终所属阵营获胜，该玩家仍然获胜。</p>
+          <p>唯一最高票者被处决，即使只有一票。最高票平票则无人处决，但所有并列最高票者都参与下面的胜负判断。</p>
+          <p class="rules-note">先检查所有玩家的最终身份，再看最高票玩家（含并列）中是否有目标身份。</p>
+          <dl class="win-rules">
+            <div><dt>所有玩家中，至少有一名狼人</dt><dd>最高票玩家中有狼人 → 好人阵营胜。<br>否则 → 坏人阵营胜。投出爪牙不能代替投出狼人。</dd></div>
+            <div><dt>所有玩家中，没有狼人，但有爪牙</dt><dd>最高票玩家中有爪牙 → 好人阵营胜。<br>否则 → 坏人阵营胜。</dd></div>
+            <div><dt>所有玩家中，既没有狼人，也没有爪牙</dt><dd>全员弃权 → 全员获胜。<br>只要有人投票 → 全员落败。</dd></div>
+          </dl>
+          <p class="rules-note">只计算玩家的最终身份，不计算中央牌。全员弃权时没有最高票者；若玩家中还有坏人，坏人阵营获胜。</p>
+        </section>
+      </div>
+    </details>
+    <details class="container guide foldable" open>
+      <summary>流程说明<span class="when-open"> · 收起</span><span class="when-closed"> · 展开</span></summary>
 
       <ol class="phase-flow" aria-label="从身份分配到结算的完整流程">
         <li class="phase-panel">
@@ -50,7 +105,7 @@
           <p class="phase-description">公布所有人的身份与胜负</p>
         </li>
       </ol>
-    </section>
+    </details>
     <div class="container">
       <div class="subtitle">更新日志</div>
       <p>
@@ -64,6 +119,28 @@
 </template>
 
 <style scoped>
+.foldable > summary { display: block; width: fit-content; max-width: 100%; margin: 0 auto; padding: 8px 18px; border-radius: 999px; border: 1px solid rgba(229, 189, 84, 0.4); background: rgba(229, 189, 84, 0.10); cursor: pointer; color: var(--accent); font-size: 0.9rem; font-weight: 700; line-height: 1.6; text-align: center; list-style: none; }
+.foldable > summary::-webkit-details-marker { display: none; }
+.foldable > summary:hover { background: rgba(229, 189, 84, 0.16); }
+.foldable > summary span { color: inherit; font-size: 0.75rem; font-weight: 400; }
+.foldable > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.foldable:not([open]) > summary .when-open, .foldable[open] > summary .when-closed { display: none; }
+.rules-content { text-align: left; }
+.rule-block { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); }
+.rule-block h2 { margin-bottom: 10px; font-size: 0.95rem; }
+.rule-block p { margin: 8px 0; font-size: 0.8rem; }
+.rule-block .rules-note { font-size: 0.75rem; }
+.faction-summary { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.faction-summary strong { display: block; margin-bottom: 3px; }
+.rule-principle { padding: 12px 8px; border: 1px solid rgba(229, 189, 84, 0.3); border-radius: 10px; background: rgba(229, 189, 84, 0.06); text-align: center; color: var(--accent); font-size: 0.85rem; font-weight: 700; line-height: 1.7; }
+.team-label { margin: 16px 0 8px; color: var(--accent); font-size: 0.75rem; font-weight: 700; }
+.role-rules, .win-rules { margin: 0; }
+.role-rules > div { display: grid; grid-template-columns: 3.5em minmax(0, 1fr); gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+.role-rules > div:last-child { border-bottom: 0; }
+.rules-content .role-rules dd { margin: 0; }
+.rules-content dt { font-size: 0.8rem; font-weight: 600; line-height: 1.7; }
+.rules-content dd { margin: 4px 0 0; color: var(--text-dim); font-size: 0.78rem; line-height: 1.7; }
+.win-rules > div { margin-top: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
 p { line-height: 1.7; color: var(--text-dim); font-size: 0.9rem; }
 .phase-flow { list-style: none; padding: 0; margin: 18px 0 0; }
 .phase-panel { position: relative; padding: 14px 10px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--surface-2); }
