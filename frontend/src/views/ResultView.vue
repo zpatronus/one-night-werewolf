@@ -200,7 +200,7 @@ const voteChart = computed(() => {
     </div>
   </div>
   <div v-else-if="err" class="container error">{{ err }} <button :disabled="loading" @click="loadResult">重试</button></div>
-  <div v-else class="muted" style="text-align:center">正在结算…</div>
+  <div v-else class="status surface-panel">正在结算…</div>
 </template>
 
 <style scoped>

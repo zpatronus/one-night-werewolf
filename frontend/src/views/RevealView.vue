@@ -125,7 +125,7 @@ async function vote() {
 
 <template>
   <div v-if="me">
-    <h1 class="subtitle">讨论与投票</h1>
+    <h1 class="subtitle surface-panel">讨论与投票</h1>
 
     <!-- One-time context (from /reveal, not the poll): who I am + room + template. -->
     <div class="container room-info">
@@ -212,7 +212,7 @@ async function vote() {
   <div v-else-if="err" class="container error">{{ err }}
     <button :disabled="loading" @click="loadReveal">重试</button>
   </div>
-  <div class="muted" style="text-align:center" v-else>正在揭晓…</div>
+  <div class="status surface-panel" v-else>正在揭晓…</div>
 </template>
 
 <style scoped>

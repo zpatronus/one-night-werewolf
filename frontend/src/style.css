@@ -3,7 +3,7 @@
 :root {
   --bg-0: #0a0e14;
   --bg-1: #10151d;
-  --surface: rgba(19, 25, 34, 0.8);
+  --surface: rgba(15, 27, 46, 0.84);
   --surface-2: rgba(255, 255, 255, 0.045);
   --border: rgba(255, 255, 255, 0.09);
   --border-strong: rgba(255, 255, 255, 0.18);
@@ -34,13 +34,23 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
+  background: var(--bg-0);
+  isolation: isolate;
+}
+
+/* A separate fixed layer keeps the village still while the page scrolls.
+   Large viewport height avoids resizing the artwork as mobile browser bars hide. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  height: 100vh;
+  height: 100lvh;
+  z-index: -1;
+  pointer-events: none;
   background:
-    radial-gradient(ellipse 70% 42% at 50% -6%, rgba(229, 189, 84, 0.13), transparent 65%),
-    radial-gradient(ellipse 50% 38% at 90% 110%, rgba(69, 183, 245, 0.07), transparent 60%),
-    radial-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1.4px),
-    linear-gradient(165deg, #0a0e14 0%, #0f141c 45%, #0a0e14 100%);
-  background-attachment: fixed;
-  background-size: 100% 100%, 100% 100%, 26px 26px, 100% 100%;
+    linear-gradient(rgba(5, 10, 20, 0.52), rgba(5, 10, 20, 0.46)),
+    url("./assets/moonlit-village-square.png") center center / cover no-repeat;
 }
 
 #app {
@@ -79,10 +89,31 @@ body {
 }
 
 .tagline {
-  margin: 8px 0 0;
-  color: var(--text-faint);
+  position: relative;
+  isolation: isolate;
+  width: fit-content;
+  max-width: 100%;
+  margin: 8px auto 0;
+  padding: 7px 16px;
+  color: var(--text-dim);
   font-size: 0.8rem;
   letter-spacing: 3px;
+  text-shadow: 0 1px 3px #050a14;
+}
+
+/* Uneven ink edges and fading bristle marks, kept behind the lettering. */
+.tagline::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(177deg, transparent 0 3px, rgba(8, 16, 29, 0.3) 3px 4px),
+    linear-gradient(90deg, transparent, rgba(10, 20, 36, 0.9) 13%, rgba(10, 20, 36, 0.94) 80%, transparent);
+  clip-path: polygon(0 27%, 9% 20%, 5% 12%, 24% 16%, 37% 8%, 53% 13%, 72% 6%, 91% 16%, 98% 12%, 94% 30%, 100% 38%, 96% 52%, 99% 66%, 91% 69%, 96% 83%, 76% 80%, 61% 91%, 42% 84%, 24% 92%, 8% 82%, 12% 71%, 1% 75%, 5% 55%, 0 48%, 6% 38%);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
 }
 
 .nav {
@@ -94,7 +125,7 @@ body {
   max-width: 100%;
   margin: 0 auto 20px;
   padding: 4px;
-  background: var(--surface-2);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 999px;
   box-shadow: var(--shadow-sm);
@@ -129,7 +160,7 @@ body {
   width: fit-content;
   margin: -10px auto 18px;
   padding: 6px 14px;
-  background: var(--surface-2);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 999px;
   color: var(--text-dim);
@@ -145,6 +176,23 @@ body {
 
 /* ---------- Cards ---------- */
 
+.nav,
+.me,
+.waiting-note,
+.surface-panel,
+.container {
+  background: var(--surface);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+.surface-panel {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+}
+
 .container {
   position: relative;
   background: var(--surface);
@@ -153,7 +201,6 @@ body {
   padding: 18px;
   margin: 14px auto;
   box-shadow: var(--shadow);
-  backdrop-filter: blur(14px);
 }
 
 .container::before {
@@ -428,7 +475,7 @@ button:disabled {
   font-weight: 600;
   font-size: 0.92rem;
   color: var(--evil);
-  background: rgba(255, 139, 69, 0.08);
+  background: var(--surface);
   border: 1px solid rgba(255, 139, 69, 0.28);
   border-radius: var(--radius-sm);
   padding: 10px 12px;

@@ -39,3 +39,6 @@ frontend/.vite/
 
 /frontend-dist
 /deploy-frontend.sh
+
+
+output

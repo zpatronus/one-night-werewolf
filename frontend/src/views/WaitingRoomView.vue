@@ -256,7 +256,7 @@ watch(liveBoard, (b, prev) => {
       @cancel="confirmOpen = false"
     />
 
-    <div class="status">{{ err }}</div>
+    <div v-if="err" class="status surface-panel">{{ err }}</div>
   </div>
 </template>
 
