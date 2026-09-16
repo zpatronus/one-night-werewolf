@@ -106,6 +106,19 @@
         </li>
       </ol>
     </details>
+    <details class="container foldable">
+      <summary>常见问题<span class="when-open"> · 收起</span><span class="when-closed"> · 展开</span></summary>
+      <dl class="faq-list">
+        <div class="faq-item">
+          <dt>为什么没有一般狼人杀那样的上帝喊人依次睁眼环节？</dt>
+          <dd>因为可以把每个角色的夜拆成两部分：先操作，再看信息。比如强盗，第一步选一个人交换，第二步系统才告诉他换到什么牌；失眠者不用操作，第二步由系统告诉他自己的牌。所有角色第一步各自操作、互不影响，可以同时进行；但有些人的第二步依赖别人的第一步——比如失眠者看到的牌，就取决于强盗、捣蛋鬼之前有没有动过他的牌。所以系统让所有人先在第一步一起操作，再在第二步一起看到各自的信息。</dd>
+        </div>
+        <div class="faq-item">
+          <dt>什么叫我在行动阶段看到的身份可能是假的？</dt>
+          <dd>并发协议虽好，却带来一个场外信息问题：光看「谁在第一阶段玩手机」，就能猜出谁是夜里需要操作的角色。解决办法是——第一阶段即使你的身份不需要操作（比如你是村民），系统也不告诉你这一点，而是从需要操作的角色里随机发一个假身份给你，比如告诉你「你是强盗，选一张」。你此时分辨不出自己是真强盗，还是被分到假强盗的不操作角色。只有到了第二阶段、揭开初始真实身份时你才明白：如果是强盗，你刚才的选择会真的换牌；如果是村民，刚才的操作不会对游戏产生任何影响。</dd>
+        </div>
+      </dl>
+    </details>
     <div class="container">
       <div class="subtitle">源代码、许可证与友链</div>
       <p>
@@ -152,6 +165,12 @@
 .role-rules > div:last-child { border-bottom: 0; }
 .rules-content .role-rules dd { margin: 0; }
 .rules-content dt { font-size: 0.8rem; font-weight: 600; line-height: 1.7; }
+.faq-list { margin: 0; text-align: left; }
+.faq-list > div { padding: 12px 2px; }
+.faq-list > div + div { border-top: 1px solid var(--border); }
+.faq-list dt { font-size: 0.82rem; font-weight: 700; line-height: 1.7; color: var(--accent); }
+.faq-list dd { margin: 8px 0 0; font-size: 0.78rem; line-height: 1.8; color: var(--text-dim); }
+.faq-list b { color: var(--text); }
 .rules-content dd { margin: 4px 0 0; color: var(--text-dim); font-size: 0.78rem; line-height: 1.7; }
 .win-rules > div { margin-top: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
 p { line-height: 1.7; color: var(--text-dim); font-size: 0.9rem; }
