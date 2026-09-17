@@ -68,12 +68,12 @@
           <p class="action-intro">所有玩家先查看自己的初始身份，再按提示操作：</p>
           <div class="action-cases">
             <div class="action-card real-action">
-              <h3>真实身份需要行动</h3>
+              <h3>需要行动</h3>
               <p class="role-list">预言家 · 强盗<br>捣蛋鬼 · 独狼</p>
-              <div class="action-result"><strong>操作真实身份</strong><span>你的选择会真正执行</span></div>
+              <div class="action-result"><strong>选择行动目标</strong><span>按角色能力执行</span></div>
             </div>
             <div class="action-card cover-action">
-              <h3>真实身份无需行动</h3>
+              <h3>无需行动</h3>
               <p class="role-list">村民 · 失眠者 · 爪牙<br>有狼同伴的狼人</p>
               <div class="action-result"><strong>随意点选屏幕</strong><span>界面明确提示无需行动<br>点选不会影响游戏结果</span></div>
             </div>
@@ -85,7 +85,7 @@
         </li>
         <li class="phase-panel">
           <h2><span class="step-number" aria-hidden="true">02</span>服务器结算行动</h2>
-          <p class="phase-description">操作结束后，服务器结算真实行动<br>按真实身份与正常夜间顺序计算结果，而非提交先后</p>
+          <p class="phase-description">操作结束后，服务器结算夜间行动<br>按初始身份与夜间行动顺序计算结果，而非提交先后</p>
           <div class="resolution-example">
             <p class="example-label">结算顺序示例</p>
             <ol class="resolution-order" aria-label="预言家、强盗、捣蛋鬼、失眠者的结算顺序示例">
