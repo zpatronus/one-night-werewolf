@@ -1,7 +1,7 @@
 <template>
   <div>
     <details class="container foldable">
-      <summary>游戏规则<span class="when-open"> · 收起</span><span class="when-closed"> · 展开</span></summary>
+      <summary><span class="fold-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4Z"/><path d="M5 16h13M9 8h5M9 11h5"/></svg></span>游戏规则<span class="when-open"> · 收起</span><span class="when-closed"> · 展开</span></summary>
       <div class="rules-content">
         <section class="rule-block">
           <h2>游戏准备</h2>
@@ -56,7 +56,7 @@
       </div>
     </details>
     <details class="container guide foldable">
-      <summary>流程说明<span class="when-open"> · 收起</span><span class="when-closed"> · 展开</span></summary>
+      <summary><span class="fold-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="6" height="6" rx="1.5"/><rect x="14" y="15" width="6" height="6" rx="1.5"/><path d="M7 9v9h7M12 6h5v6m-3-3 3 3 3-3"/></svg></span>流程说明<span class="when-open"> · 收起</span><span class="when-closed"> · 展开</span></summary>
 
       <ol class="phase-flow" aria-label="从身份分配到结算的完整流程">
         <li class="phase-panel">
@@ -111,7 +111,7 @@
       </ol>
     </details>
     <details class="container foldable">
-      <summary>常见问题<span class="when-open"> · 收起</span><span class="when-closed"> · 展开</span></summary>
+      <summary><span class="fold-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .3c0 1.7-2.5 1.8-2.5 3.7M12 16h.01"/></svg></span>常见问题<span class="when-open"> · 收起</span><span class="when-closed"> · 展开</span></summary>
       <dl class="faq-list">
         <div class="faq-item">
           <dt>为什么没有一般狼人杀那样的上帝喊人依次睁眼环节？</dt>
@@ -152,16 +152,16 @@
 </template>
 
 <style scoped>
-.foldable > summary { display: block; width: fit-content; max-width: 100%; margin: 0 auto; padding: 8px 18px; border-radius: 999px; border: 1px solid rgba(229, 189, 84, 0.4); background: rgba(229, 189, 84, 0.10); cursor: pointer; color: var(--accent); font-size: 0.9rem; font-weight: 700; line-height: 1.6; text-align: center; list-style: none; }
+.foldable > summary { display: flex; align-items: center; width: 100%; margin: 0; padding: 4px 0; cursor: pointer; color: var(--text); font-size: 1.05rem; font-weight: 650; line-height: 1.6; text-align: left; list-style: none; }
 .foldable > summary::-webkit-details-marker { display: none; }
-.foldable > summary:hover { background: rgba(229, 189, 84, 0.16); }
-.foldable > summary span { color: inherit; font-size: 0.75rem; font-weight: 400; }
+.foldable > summary:hover { color: var(--accent-hover); }
+.foldable > summary .when-open, .foldable > summary .when-closed { margin-left: auto; color: var(--text-dim); font-size: 0.72rem; font-weight: 400; }
 .foldable > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .foldable:not([open]) > summary .when-open, .foldable[open] > summary .when-closed { display: none; }
 .rules-content { text-align: left; }
 .rule-block { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); }
 .rule-block h2 { margin-bottom: 10px; font-size: 0.95rem; }
-.rule-block p { margin: 8px 0; font-size: 0.8rem; }
+.rule-block p { margin: 10px 0; font-size: 0.82rem; line-height: 1.9; }
 .rule-block .rules-note { font-size: 0.75rem; }
 .faction-summary { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
 .faction-summary strong { display: block; margin-bottom: 3px; }
@@ -175,22 +175,22 @@
 .faq-list { margin: 0; text-align: left; }
 .faq-list > div { padding: 12px 2px; }
 .faq-list > div + div { border-top: 1px solid var(--border); }
-.faq-list dt { font-size: 0.82rem; font-weight: 700; line-height: 1.7; color: var(--accent); }
-.faq-list dd { margin: 8px 0 0; font-size: 0.78rem; line-height: 1.8; color: var(--text-dim); }
+.faq-list dt { font-size: 0.88rem; font-weight: 700; line-height: 1.7; color: var(--accent); }
+.faq-list dd { margin: 8px 0 0; font-size: 0.82rem; line-height: 1.95; color: var(--text-dim); }
 .faq-list b { color: var(--text); }
 .rules-content dd { margin: 4px 0 0; color: var(--text-dim); font-size: 0.78rem; line-height: 1.7; }
 .win-rules > div { margin-top: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
 p { line-height: 1.7; color: var(--text-dim); font-size: 0.9rem; }
 .phase-flow { list-style: none; padding: 0; margin: 18px 0 0; }
-.phase-panel { position: relative; padding: 14px 10px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--surface-2); }
-.phase-panel + .phase-panel { margin-top: 34px; }
-.phase-panel + .phase-panel::before { content: ""; position: absolute; left: 50%; top: -29px; height: 21px; border-left: 1px solid var(--accent); }
-.phase-panel + .phase-panel::after { content: ""; position: absolute; left: calc(50% - 3px); top: -14px; width: 6px; height: 6px; border-right: 1px solid var(--accent); border-bottom: 1px solid var(--accent); transform: rotate(45deg); }
-.step-number { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--border-strong); border-radius: 50%; color: var(--accent); font-size: 0.72rem; font-weight: 700; }
-h2 { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 0 12px; font-size: 1rem; }
+.phase-panel { position: relative; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
+.phase-panel + .phase-panel { margin-top: 20px; }
+.phase-panel + .phase-panel::before { content: ""; position: absolute; left: 30px; top: -21px; height: 20px; border-left: 1px solid var(--accent); }
+
+.step-number { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid rgba(229, 189, 84, 0.25); border-radius: 8px; background: rgba(229, 189, 84, 0.06); color: var(--accent); font-size: 0.72rem; font-weight: 700; }
+h2 { display: flex; align-items: center; justify-content: flex-start; gap: 10px; margin: 0 0 12px; font-size: 1rem; }
 .action-phase { border-color: rgba(229, 189, 84, 0.3); background: rgba(229, 189, 84, 0.04); }
-.phase-description { margin: 0; text-align: center; font-size: 0.78rem; }
-.action-intro { margin: 0 0 12px; text-align: center; font-size: 0.78rem; }
+.phase-description { margin: 0; text-align: left; font-size: 0.8rem; line-height: 1.85; }
+.action-intro { margin: 0 0 14px; text-align: left; font-size: 0.8rem; }
 .shared-rule-box { margin-top: 12px; padding: 12px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); text-align: center; }
 .shared-rule-box strong { font-size: 0.78rem; line-height: 1.7; color: var(--accent); }
 .shared-rule-box p { margin: 6px 0 0; font-size: 0.75rem; }
@@ -213,5 +213,55 @@ h3 { margin: 6px 0; font-size: 0.8rem; }
   .resolution-order li + li::before { margin: 0 6px; }
   .guide { padding: 16px 10px; }
   .action-cases { gap: 6px; }
+}
+.container { padding: 22px; }
+.container.foldable {
+  padding: 0;
+  margin: 10px auto;
+  border-color: rgba(229, 189, 84, 0.16);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.foldable::before { display: none; }
+.foldable > summary {
+  min-height: 70px;
+  padding: 14px 18px;
+  gap: 12px;
+  font-size: 0.95rem;
+  background: linear-gradient(110deg, rgba(229, 189, 84, 0.045), transparent 65%);
+}
+.foldable > summary:hover { background: rgba(229, 189, 84, 0.07); }
+.foldable > summary:focus-visible { outline-offset: -3px; border-radius: 12px; }
+.fold-icon { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; border: 1px solid rgba(229, 189, 84, 0.18); border-radius: 10px; background: rgba(229, 189, 84, 0.06); color: var(--accent); }
+.fold-icon svg { width: 21px; height: 21px; color: inherit; }
+.foldable > summary::after { content: ''; width: 6px; height: 6px; flex-shrink: 0; margin-left: 2px; border-right: 1.5px solid var(--accent); border-bottom: 1.5px solid var(--accent); transform: rotate(45deg) translateY(-2px); }
+.foldable[open] > summary::after { transform: rotate(225deg) translate(-1px, -1px); }
+.foldable > .rules-content, .foldable > .faq-list { padding: 0 20px 20px; }
+.foldable > .phase-flow { margin: 0; padding: 20px; }
+
+.foldable[open] > summary { border-bottom: 1px solid var(--border); }
+.rule-block:first-child { margin-top: 18px; padding-top: 0; border-top: 0; }
+.rule-block h2 { font-size: 0.95rem; color: var(--accent-hover); }
+.role-rules > div { padding: 12px 0; gap: 14px; }
+.role-rules dt { color: var(--text); }
+.faction-summary { display: grid; gap: 12px; padding: 14px; }
+.faction-summary p { margin: 0; }
+.faction-summary strong { font-size: 0.75rem; color: var(--accent); }
+.win-rules > div { padding: 14px; border-left: 2px solid rgba(229, 189, 84, 0.55); }
+.rules-content dd { line-height: 1.85; }
+.faq-list > div { padding: 18px 0; }
+.faq-list > div:last-child { padding-bottom: 0; }
+.container > .subtitle { margin: 0 0 18px; text-align: left; font-size: 1.05rem; font-weight: 650; letter-spacing: 0; color: var(--text); }
+.container > p { margin: 0; padding: 14px 0; font-size: 0.8rem; line-height: 1.9; overflow-wrap: anywhere; }
+.container > p + p { border-top: 1px solid var(--border); }
+.container > p:last-child { padding-bottom: 0; }
+.container > p b { display: block; color: var(--accent-hover); font-size: 0.82rem; margin-bottom: 7px; }
+a { text-underline-offset: 4px; text-decoration-color: rgba(229, 189, 84, 0.4); }
+a:hover { color: var(--accent-hover); text-decoration-color: currentColor; }
+@media (max-width: 360px) {
+  .container { padding: 18px 14px; }
+  .phase-panel { padding: 14px 10px; }
+  .action-card { padding: 10px 5px; }
+  .resolution-order { flex-wrap: wrap; row-gap: 6px; }
 }
 </style>
