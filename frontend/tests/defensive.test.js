@@ -60,6 +60,22 @@ test('ops countdown uses the server end time and waits for phase transition at z
   assert.equal(c.countdown.value, '跳转中...')
 })
 
+test('cover selections stay local and cannot submit a night action', async () => {
+  let calls = 0
+  const { instance: c, state } = load('views/OperationView.vue', {
+    '../api': { post: async () => { calls++; return { ok: true } } },
+  })
+  state.value = { phase: 'op', role: null, my_choice: {} }
+  c.coverPick.value = 1
+  await c.submit()
+  c.coverPick.value = 3
+  await c.submit()
+  assert.equal(calls, 0)
+  assert.deepEqual(state.value.my_choice, {})
+  assert.equal(c.completed(), false)
+  assert.equal(c.buildChoice(), null)
+})
+
 test('minion replay explicitly reports no werewolves', () => {
   const { instance: c } = load('views/ResultView.vue')
   assert.equal(c.opSentence({ type: 'minion', minion: 'A', wolves: [] }), '💀 爪牙 A 得知场上没有狼人。')

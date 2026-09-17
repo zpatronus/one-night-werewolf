@@ -72,20 +72,20 @@
               <p class="role-list">预言家 · 强盗<br>捣蛋鬼 · 独狼</p>
               <div class="action-result"><strong>操作真实身份</strong><span>你的选择会真正执行</span></div>
             </div>
-            <div class="action-card decoy-action">
+            <div class="action-card cover-action">
               <h3>真实身份无需行动</h3>
               <p class="role-list">村民 · 失眠者 · 爪牙<br>有狼同伴的狼人</p>
-              <div class="action-result"><strong>操作随机假身份</strong><span>如村民看到强盗界面<br>选了人也不会真的换牌</span></div>
+              <div class="action-result"><strong>随意点选屏幕</strong><span>界面明确提示无需行动<br>点选不会影响游戏结果</span></div>
             </div>
           </div>
           <div class="shared-rule-box">
-            <strong>人人都操作，谁也不知道界面上的身份是真是假。</strong>
-            <p>照提示选择即可；真实身份与所有信息、结果，<br>都等到「揭晓与投票」才显示。</p>
+            <strong>人人都看屏幕，避免从操作动作猜测身份。</strong>
+            <p>需要行动时按身份选择；无需行动时随意点选。<br>完整身份与夜间信息、结果，<br>都等到「揭晓与投票」才显示。</p>
           </div>
         </li>
         <li class="phase-panel">
           <h2><span class="step-number" aria-hidden="true">02</span>服务器结算行动</h2>
-          <p class="phase-description">操作结束后，服务器忽略假身份的操作<br>按真实身份与正常夜间顺序计算结果，而非提交先后</p>
+          <p class="phase-description">操作结束后，服务器结算真实行动<br>按真实身份与正常夜间顺序计算结果，而非提交先后</p>
           <div class="resolution-example">
             <p class="example-label">结算顺序示例</p>
             <ol class="resolution-order" aria-label="预言家、强盗、捣蛋鬼、失眠者的结算顺序示例">
@@ -98,7 +98,7 @@
         </li>
         <li class="phase-panel">
           <h2><span class="step-number" aria-hidden="true">03</span>揭晓与投票</h2>
-          <p class="phase-description">此时才揭晓你的真实身份与操作结果<br>根据这些信息讨论，然后投票</p>
+          <p class="phase-description">查看你的初始身份、夜间信息与操作结果<br>根据这些信息讨论，然后投票</p>
         </li>
         <li class="phase-panel">
           <h2><span class="step-number" aria-hidden="true">04</span>结算</h2>
@@ -114,8 +114,8 @@
           <dd>依次睁眼很花时间，还要担心时长、声音这些信息在各阶段之间泄漏，线上化时还得用语音合成来「喊话」——又麻烦又多余。其实这件事有更省事、也一样正确的做法。每个角色的夜晚都可以被拆成两部分：先操作，再看信息。比如强盗，第一步选一个人交换，第二步系统才告诉他换到什么牌；失眠者不用操作，第二步由系统告诉他自己的牌。可以观察到：在第一阶段，所有角色的操作互不依赖彼此；在第二阶段，所有角色的信息展示也互不依赖彼此。但有些角色的第二阶段，依赖的是其他角色的第一阶段——比如失眠者看到的牌，就取决于强盗、捣蛋鬼之前的操作。正因为这样，我们可以安全地让所有角色并发进行第一阶段，由服务器按规则处理每个人的操作，再把结果在第二阶段呈现给各自。</dd>
         </div>
         <div class="faq-item">
-          <dt>什么叫我在行动阶段看到的身份可能是假的？</dt>
-          <dd>并发协议虽好，却带来一个场外信息问题：光看「谁在第一阶段玩手机」，就能猜出谁是夜里需要操作的角色。解决办法是——第一阶段即使你的身份不需要操作（比如你是村民），系统也不告诉你这一点，而是从需要操作的角色里随机发一个假身份给你，比如告诉你「你是强盗，选一张」。你此时分辨不出自己是真强盗，还是被分到假强盗的不操作角色。只有到了第二阶段、揭开初始真实身份时你才明白：如果是强盗，你刚才的选择会真的换牌；如果是村民，刚才的操作不会对游戏产生任何影响。</dd>
+          <dt>为什么无需行动也要点选屏幕？</dt>
+          <dd>如果只有需要行动的玩家操作手机，其他人可能从动作猜测身份。因此，村民、失眠者、爪牙和有狼同伴的狼人会看到「你的身份夜间无需操作」的提示，并可随意点选屏幕上的选项。点选不会影响游戏结果，也无需提交。所有玩家都等待同一个倒计时结束，再查看自己的初始身份与夜间信息。</dd>
         </div>
       </dl>
     </details>
@@ -190,12 +190,12 @@ h2 { display: flex; align-items: center; justify-content: center; gap: 8px; marg
 .action-cases { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .action-card { padding: 12px 7px; border: 1px solid var(--border-strong); border-radius: 12px; text-align: center; background: var(--surface-2); }
 .real-action { border-color: rgba(229, 189, 84, 0.35); background: rgba(229, 189, 84, 0.04); }
-.decoy-action { border-style: dashed; }
+.cover-action { border-style: dashed; }
 h3 { margin: 6px 0; font-size: 0.8rem; }
 .role-list { margin: 0 0 12px; font-size: 0.73rem; }
 .action-result { border-top: 1px solid var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 5px; }
 .action-result strong { color: var(--accent); font-size: 0.87rem; }
-.decoy-action .action-result strong { color: var(--text); }
+.cover-action .action-result strong { color: var(--text); }
 .action-result span { font-size: 0.7rem; line-height: 1.7; color: var(--text-dim); }
 .resolution-example { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
 .example-label { margin: 0 0 10px; text-align: center; color: var(--text-dim); font-size: 0.73rem; }

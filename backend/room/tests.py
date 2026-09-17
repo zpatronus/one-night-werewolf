@@ -31,7 +31,7 @@ class GameChecks(TestCase):
             board={'werewolf':1,'seer':1,'robber':1,'troublemaker':1,'villager':2}, center=['seer', 'robber', 'troublemaker'],
             op_start_time=timezone.now())
         self.players = [Player.objects.create(room=self.room, userid=uid, userpsw='pw',
-            role=role, fake_role=None if role in game.REAL_DISPLAY or role == 'werewolf' else 'seer')
+            role=role)
             for uid, role in zip('ABC', ['werewolf', 'villager', 'villager'])]
         self.room.owner = self.players[0]
         self.room.save()
@@ -75,7 +75,7 @@ class GameChecks(TestCase):
             self.assertLess(polled['deadline_ms'], first['deadline_ms'])
 
     def test_seer_requires_two_distinct_integer_indices(self):
-        p = self.players[0]; p.role = p.fake_role = 'seer'; p.save()
+        p = self.players[0]; p.role = 'seer'; p.save()
         for picks in ([0], [0,0], [0,3], [-1,1], [True,1], [0,1,2], ['0',1]):
             self.assertEqual(self.call(views.night_action, choice={'type':'seer','center_picks':picks})['error'], 'bad_choice')
         self.assertEqual(self.call(views.night_action, choice={'type':'seer','target':'B','center_picks':[0,1]})['error'], 'bad_choice')
@@ -87,9 +87,9 @@ class GameChecks(TestCase):
                              ('troublemaker', {'target':'A','target2':'B'})]:
             self.assertFalse(game.valid_choice(role, 'A', 'ABC', dict(type=role, **choice)))
 
-    def test_fake_action_does_not_swap_cards(self):
-        p = self.players[1]; p.fake_role='robber'; p.save()
-        self.assertTrue(self.call(views.night_action, p, choice={'type':'robber','target':'A'})['ok'])
+    def test_no_action_player_cannot_submit_real_action(self):
+        p = self.players[1]
+        self.assertEqual(self.call(views.night_action, p, choice={'type':'robber','target':'A'})['error'], 'bad_choice')
         self.expire(); self.call(views.room_state)
         p.refresh_from_db()
         self.assertEqual(game.final_cards(self.room.players.all())[p.userid], 'villager')
@@ -118,7 +118,7 @@ class GameChecks(TestCase):
         self.assertEqual(p.choice, first)
 
     def test_seer_default_has_two_cards(self):
-        p=self.players[0]; p.role=p.fake_role='seer'; p.save()
+        p=self.players[0]; p.role='seer'; p.save()
         self.expire(); self.call(views.room_state); p.refresh_from_db()
         self.assertEqual(len(set(p.choice['center_picks'])), 2)
         self.assertEqual(len(self.call(views.reveal)['info']['peeked']), 2)
@@ -126,7 +126,7 @@ class GameChecks(TestCase):
     def test_robber_memory_precedes_troublemaker(self):
         for p, role, choice in zip(self.players, ['robber','troublemaker','werewolf'],
             [{'type':'robber','target':'C'}, {'type':'troublemaker','target':'A','target2':'C'}, {'type':'wolf','target':'center_0'}]):
-            p.role=p.fake_role=role; p.choice=choice; p.save()
+            p.role=role; p.choice=choice; p.save()
         self.expire(); self.call(views.room_state)
         p=self.players[0]; p.refresh_from_db()
         self.assertEqual(self.call(views.reveal)['info']['new_role'], 'werewolf')
@@ -158,7 +158,7 @@ class GameChecks(TestCase):
     def test_insomniac_derives_final_card_without_persisting_it(self):
         for p, role, choice in zip(self.players, ['robber','insomniac','werewolf'],
                 [{'type':'robber','target':'B'}, {'type':'seer','center_picks':[0,1]}, {'type':'wolf','target':'center_0'}]):
-            p.role=role; p.fake_role=None if role in game.REAL_DISPLAY or role == 'werewolf' else 'seer'
+            p.role=role
             p.choice=choice; p.save()
         self.expire(); self.call(views.room_state)
         reveal=self.call(views.reveal, self.players[1])
@@ -194,7 +194,7 @@ class GameChecks(TestCase):
     def test_wolf_and_seer_share_ordered_center_positions(self):
         self.room.center = ['robber', 'minion', 'troublemaker']
         self.room.save()
-        seer = self.players[1]; seer.role='seer'; seer.fake_role=None; seer.save()
+        seer = self.players[1]; seer.role='seer'; seer.save()
         self.call(views.night_action, choice={'type':'wolf','target':'center_1'})
         self.call(views.night_action, seer, choice={'type':'seer','center_picks':[1,2]})
         self.expire(); self.call(views.room_state)
@@ -222,21 +222,26 @@ class GameChecks(TestCase):
         self.assertEqual(self.room.players.count(), 10)
         self.assertTrue(self.call(views.join_room)['ok'])
 
-    def test_pack_wolves_get_template_decoys_with_no_real_effect(self):
+    def test_pack_wolves_and_villager_need_no_action(self):
         self.room.board = {'werewolf':2, 'seer':1, 'villager':3}
         self.room.save()
         def shuffle(bag):
             bag[:] = ['villager','villager','seer','werewolf','werewolf','villager']
-        with patch.object(game.random, 'shuffle', side_effect=shuffle), patch.object(game.random, 'choice', return_value='seer') as choose:
+        with patch.object(game.random, 'shuffle', side_effect=shuffle):
             game.deal(self.room)
-        self.assertEqual(choose.call_count, 3)
-        self.assertEqual(set(choose.call_args.args[0]), {'seer','werewolf'})
+        for p in self.players:
+            p.refresh_from_db()
+            state = self.call(views.room_state, p)
+            self.assertIsNone(state['role'])
+            self.assertEqual(state['my_choice'], {})
+            self.assertEqual(self.call(views.night_action, p,
+                choice={'type':'wolf','target':'center_0'})['error'], 'bad_choice')
         self.expire(); self.call(views.room_state)
         for p in self.players[:2]:
             p.refresh_from_db()
-            self.assertEqual(p.fake_role, 'seer')
+            self.assertEqual(p.choice, {})
             result = self.call(views.reveal, p)
-            self.assertTrue(result['action_was_fake'])
+            self.assertNotIn('action_was_fake', result)
             self.assertEqual(result['role'], 'werewolf')
             self.assertEqual(result['info'], {'teammates': ['B' if p.userid == 'A' else 'A']})
         self.assertEqual(game.final_cards(self.room.players.all()), {'A':'werewolf','B':'werewolf','C':'villager'})
@@ -249,18 +254,21 @@ class GameChecks(TestCase):
         with patch.object(game.random, 'shuffle', side_effect=shuffle):
             game.deal(self.room)
         for p in self.room.players.all():
-            self.assertIsNone(p.fake_role)
-            self.assertEqual(p.display_role, p.role)
+            self.assertEqual(self.call(views.room_state, p)["role"], p.role)
         self.expire(); self.call(views.room_state)
         result = self.call(views.reveal)
-        self.assertFalse(result['action_was_fake'])
         self.assertIn('peek', result['info'])
 
-    def test_decoy_pool_uses_operable_template_roles(self):
-        self.assertEqual(game.fake_pool({'werewolf':5,'robber':1,'minion':1}), ['robber','werewolf'])
-        self.assertEqual(game.fake_pool({'seer':1,'villager':5}), ['seer'])
-        self.assertEqual(game.fake_pool({'villager':6}), game.FAKE_POOL)
-
+    def test_passive_roles_wait_without_submitting_even_in_development(self):
+        self.room.players.update(role='villager')
+        for p, role in zip(self.players, ['villager', 'minion', 'insomniac']):
+            p.role = role; p.save()
+            self.assertIsNone(self.call(views.room_state, p)['role'])
+        with patch.object(views, 'IS_DEV', True):
+            self.assertEqual(self.call(views.room_state)['phase'], 'op')
+            self.expire()
+            self.assertEqual(self.call(views.room_state)['phase'], 'reveal')
+        self.assertTrue(all(p.choice == {} for p in self.room.players.all()))
 
     def test_create_room_uses_valid_owner_template(self):
         board = {'werewolf': 1, 'seer': 1, 'villager': 4}

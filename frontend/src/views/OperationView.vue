@@ -11,6 +11,7 @@ import { sortPlayers } from '../playerOrder'
 const { state, error: pollError, applyState } = useRoomState()
 const sel = reactive({ a: '', b: '', center: -1, picks: [] })  // a/b: players; center: lone-wolf; picks: seer center (1-2, ordered)
 const mode = ref('player')  // seer toggle: 'player' | 'center'
+const coverPick = ref(null)
 const confirmed = ref(false)
 const err = ref('')
 const busy = ref(false)
@@ -202,12 +203,11 @@ async function submit() {
 
     <!-- 操作面板：只显示"我"已提交到服务器的 ops（由服务器 response 渲染），
          其他玩家的操作一律保密，绝不展示谁已完成/未完成。 -->
-    <div class="container role-banner">
+    <div v-if="role" class="container role-banner">
       <span class="role-emoji">{{ roleIcon(role) }}</span>
       <div><b>你是 {{ roleName(role) }}</b></div>
       <p class="muted" style="font-size:13px;margin:6px 0 0">
-        你正在操作的身份可能与真实身份一致，也可能只是伪装（用于防窥探）。
-        无论如何，请按这一身份认真作出选择——你的真实身份与有效行动将在下一阶段揭晓。
+        请按提示作出选择，夜间信息与行动结果将在下一阶段揭晓。
       </p>
       <div v-if="confirmed || state.my_choice?.type" class="submitted-card">
         <div class="submitted-head">✅ 我的行动已提交</div>
@@ -216,7 +216,19 @@ async function submit() {
       </div>
     </div>
 
-    <div class="container">
+    <div v-if="!role" class="container">
+      <h2>你的身份夜间无需操作</h2>
+      <p class="muted">请随意点选下方选项，避免其他玩家从你的操作动作猜测身份。点选不会影响游戏结果。</p>
+      <div class="dir">
+        <button v-for="i in 3" :key="i" type="button" class="mode-btn"
+          :class="{ selected: coverPick === i }" :aria-pressed="coverPick === i"
+          @click="coverPick = i">选项 {{ i }}</button>
+      </div>
+      <p class="muted">{{ coverPick ? '已点选，可继续随意切换。' : '无需提交。' }} 倒计时结束后查看身份与夜间信息。</p>
+      <p v-if="pollError" class="error">{{ errorText(pollError) }}</p>
+    </div>
+
+    <div v-else class="container">
       <template v-if="isSeer()">
         <div class="dir" style="margin-bottom:14px">
           <button class="mode-btn" :class="{ selected: mode === 'player' }" @click="mode = 'player'">看一名玩家</button>

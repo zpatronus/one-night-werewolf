@@ -14,8 +14,7 @@ export const ROLE_DISPLAY = {
 export const roleName = (code) => ROLE_DISPLAY[code]?.name || code
 export const roleIcon = (code) => ROLE_DISPLAY[code]?.emoji || '❔'
 
-// Operable interfaces. Pack wolves and other no-choice roles receive a
-// template-based decoy; only lone wolves really peek.
+// Real operable interfaces; only lone wolves peek. Other roles use local cover clicks.
 export const OPERATION_ROLES = ['seer', 'robber', 'troublemaker', 'werewolf']
 
 // Every room starts with two wolves, two villagers, and one of every other role.

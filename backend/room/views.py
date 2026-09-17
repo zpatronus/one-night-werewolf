@@ -107,7 +107,7 @@ def _op_payload(room, player, deadline):
     return {
         "ok": True,
         "phase": "op",
-        "role": player.display_role,
+        "role": game.operation_role(player),
         "my_choice": player.choice,
         "submitted": bool(player.choice),
         "submitted_count": submitted,
@@ -157,10 +157,10 @@ def _advance(room):
     if room.phase == "op":
         if IS_DEV:
             # Development: advance only when BOTH the deadline has passed AND
-            # every player has operated. A stuck player is then impossible to
+            # every player who needs an action has operated. A stuck player is impossible to
             # miss. Not applied in production (see below).
             timed_out = room.op_start_time and timezone.now() >= room.op_start_time + OPS_DURATION
-            all_operated = room.players.exclude(choice={}).count() == room.players.count()
+            all_operated = all(p.choice or game.operation_role(p) is None for p in room.players.all())
             advance = timed_out and all_operated
         else:
             # Production (anti-cheat, design.md ``%5``): op -> reveal fires ONLY
@@ -191,7 +191,7 @@ def _advance(room):
 # ---------------------------------------------------------------------------
 
 def _valid_choice(room, player, choice):
-    return game.valid_choice(player.display_role, player.userid,
+    return game.valid_choice(game.operation_role(player), player.userid,
                              room.players.values_list("userid", flat=True), choice)
 
 
@@ -421,9 +421,6 @@ def reveal(request):
             "board": room.board,
             "me": {"userid": player.userid, "avatar": player.avatar},
             "role": player.role,
-            "action_was_fake": player.fake_role is not None,
-            # ``display_role`` (the fake operating identity) is intentionally
-            # withheld — a player should only learn their real initial role.
             # ``final_role`` intentionally withheld for non-insomniac roles:
             # only the insomniac learns it, via ``info``. Never put it here,
             # or a player could read it straight out of the API response.

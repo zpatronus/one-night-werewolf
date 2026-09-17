@@ -157,9 +157,6 @@ async function vote() {
       <template v-if="showRole">
         <span class="role-emoji">{{ roleIcon(me.role) }}</span>
         <div><b>你最初的身份：{{ roleName(me.role) }}</b></div>
-        <p v-if="me.action_was_fake" class="muted">
-          刚才是伪装操作，不会产生实际效果。你真正的初始身份是 {{ roleName(me.role) }}，夜间信息如下。
-        </p>
         <!-- 只有失眠者拥有知道最终身份的夜技能；其他人都不知道自己的最终身份。 -->
         <div v-if="me.role === 'insomniac' && me.info?.final_role" class="final-role">
           <b>你的最终身份：</b>{{ roleIcon(me.info.final_role) }} {{ roleName(me.info.final_role) }}

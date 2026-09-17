@@ -17,19 +17,19 @@ ROLE_CODES = [
 ]
 
 # These roles always make a real choice. Only a lone dealt wolf also acts.
-REAL_DISPLAY = {"seer", "robber", "troublemaker"}
-FAKE_POOL = ["seer", "robber", "troublemaker", "werewolf"]
+ACTION_ROLES = {"seer", "robber", "troublemaker"}
 
 MIN_PLAYERS = 3
 MAX_PLAYERS = 10
 
 
-def fake_pool(board):
-    """Use operable roles in the template, independent of the deal.
-
-    Boards without any operable roles use the full pool so everyone still acts.
-    """
-    return [role for role in FAKE_POOL if board.get(role, 0) > 0] or list(FAKE_POOL)
+def operation_role(player):
+    """Return the real actionable role, or None for frontend-only cover clicks."""
+    if player.role in ACTION_ROLES:
+        return player.role
+    if player.role == "werewolf" and player.room.players.filter(role="werewolf").count() == 1:
+        return "werewolf"
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -49,7 +49,7 @@ def valid_board_shape(board):
 
 
 def valid_choice(role, userid, users, choice):
-    """Validate only the displayed interface, never reveal whether it is real."""
+    """Validate a real night action."""
     if not isinstance(choice, dict):
         return False
     kind = choice.get("type")
@@ -102,12 +102,7 @@ def validate_board(board, player_count):
 # ---------------------------------------------------------------------------
 
 def deal(room):
-    """Deal the board's 3 center cards + 1 card per player.
-
-    Assigns each player's real ``role``, their phase-1 ``display_role``
-    (real action role, or a random fake interface), and resets all per-player
-    phase fields for a fresh game.
-    """
+    """Deal initial identities and reset choices and votes."""
     players = list(room.players.order_by("id"))
     board = room.board
 
@@ -119,22 +114,16 @@ def deal(room):
     room.center = bag[:3]
     dealt_roles = bag[3:]  # one card per player
 
-    # Decoy identities come purely from the board template (see fake_pool) —
-    # NOT from which roles happened to land in players' hands.
-    decoys = fake_pool(board)
     # Keep ``room.board`` intact: it's the public template and is still shown
     # on the reveal page. Phase (not an empty board) tracks game progress.
     room.save(update_fields=["center"])
 
-    lone_wolf = dealt_roles.count("werewolf") == 1
     for p, role in zip(players, dealt_roles):
         p.role = role
         p.choice = {}
-        real_action = role in REAL_DISPLAY or (role == "werewolf" and lone_wolf)
-        p.fake_role = None if real_action else random.choice(decoys)
         p.vote_target = None
         p.save(update_fields=[
-            "role", "choice", "fake_role", "vote_target",
+            "role", "choice", "vote_target",
         ])
 
 
@@ -143,8 +132,8 @@ def deal(room):
 # ---------------------------------------------------------------------------
 
 def _default_choice(player, all_players):
-    """Random valid operation for the displayed interface, including decoys."""
-    role = player.display_role
+    """Random valid operation for a real actionable role."""
+    role = operation_role(player)
     others = [p.userid for p in all_players if p.id != player.id]
     if role == "seer":
         return {"type": "seer", "center_picks": random.sample(range(3), 2)}
@@ -161,13 +150,13 @@ def _default_choice(player, all_players):
 def run_resolver(room):
     """Freeze raw choices once inside the phase transition transaction.
 
-    Missing/invalid choices receive random defaults. Decoy choices are stored
-    like real choices but ignored when deriving cards and private observations.
+    Missing/invalid real choices receive random defaults. Players without an
+    action keep an empty choice.
     """
     players = list(room.players.order_by("id"))
     users = [p.userid for p in players]
     for p in players:
-        if not valid_choice(p.display_role, p.userid, users, p.choice):
+        if not valid_choice(operation_role(p), p.userid, users, p.choice):
             p.choice = _default_choice(p, players)
             p.save(update_fields=["choice"])
 

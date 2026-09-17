@@ -15,11 +15,11 @@
 | 模型 | 持久化字段（除主键外） |
 | --- | --- |
 | Room | `roomid, phase, owner, board, center, op_start_time, created_at` |
-| Player | `room, userid, userpsw, avatar, role, fake_role, choice, vote_target` |
+| Player | `room, userid, userpsw, avatar, role, choice, vote_target` |
 
-`role` 为初始牌；真实行动角色的 `fake_role=null`，展示身份由 `fake_role or role` 得出。
+`role` 为初始牌；行动阶段仅向需要行动者返回真实操作身份，其他人返回 `role=null`，具体身份等揭晓时显示。
 
-`choice={}` 表示未提交；保存的操作仅包含输入字段，不含窥视结果、最终身份或狼队友。缺失操作在截止时随机补全，之后不再修改。假操作同样保存但不产生真实效果。
+`choice={}` 表示未提交或无需行动；保存的真实操作仅包含输入字段，不含窥视结果、最终身份或狼队友。缺失的真实操作在截止时随机补全；无需行动者保持 `{}`。
 
 `vote_target=null` 表示未投票，`""` 表示弃权，其他字符串为目标玩家。API 中的 `submitted / voted` 都是即时推导值，不是持久化字段。
 
@@ -32,7 +32,7 @@
 `waiting → op → reveal → result`，一个房间只打一局。
 
 - 没有后台计时线程；`room_state` 与 `night_action` 在请求中检查操作阶段是否到期。
-- 所有人必须操作，禁止提交跳过动作。无真实行动的人操作假身份；未提交的人获得随机默认操作。
+- 需要行动者禁止提交跳过动作，未提交时获得随机默认操作；无需行动者只在前端点选，不提交。
 - 即使全员已经提交，也必须等满时限。截止后拒绝写入新操作，返回当前阶段。
 - 到期后，在事务中通过 `UPDATE Room SET phase='reveal' WHERE phase='op'` 取得唯一推进权，再补全默认操作。事务失败全部回滚，阶段条件保证只冻结一次。
 - 加入、开始、夜间写操作和投票事务先锁房间，再检查权威状态。SQLite 用事务内第一条无值变化的 UPDATE 取得写锁，避免读后升级锁的竞争。
@@ -69,7 +69,7 @@
 | phase | 数据 |
 | --- | --- |
 | waiting | `users:[{userid,avatar}], userCount, host, is_owner, board` |
-| op | `role`（展示身份）、`my_choice, submitted, submitted_count, total_count, deadline_ms, users` |
+| op | `role`（真实可操作身份；无需行动为 `null`）、`my_choice, submitted, submitted_count, total_count, deadline_ms, users` |
 | reveal | `voted`（仅本人是否已投） |
 | result | 无其他数据，结果正文另取 |
 
@@ -87,13 +87,13 @@
 
 请求为凭据。锁内检查房主、等待阶段、3–10 名玩家、总牌数为人数加三；强盗与捣蛋鬼各最多一张。
 
-洗牌后保存各玩家初始牌、需要的假身份和中央三张牌。预言家、强盗、捣蛋鬼和玩家中唯一的狼人执行真实操作；其余玩家（包括有狼队友的狼人）随机分配模板中可操作角色的假界面。模板完全没有可操作角色时使用完整操作池，以保证人人操作。随后清空等待期牌组配置，记录开始时间，进入 `op`。
+洗牌后保存各玩家初始牌和中央三张牌。预言家、强盗、捣蛋鬼和玩家中唯一的狼人执行真实操作；其余玩家无需行动，返回 `role=null`，只在前端随意点选。保留公共板子，记录开始时间，进入 `op`。
 
 成功返回当前房间状态。失败为 `not_host / not_waiting / bad_players_count / bad_board`，不产生部分发牌。
 
 ### POST `/api/night_action/`
 
-请求为凭据加 `choice`。验证展示身份对应的操作，而非通过真实身份泄露真假。
+请求为凭据加 `choice`。验证真实可操作身份；无需行动者提交任何操作均返回 `bad_choice`。
 
 | 展示身份 | 唯一允许的字段与目标 |
 | --- | --- |
@@ -110,7 +110,7 @@
 
 请求为凭据，仅 `reveal` 阶段允许，否则 `not_in_reveal`。
 
-返回 `{ok:true, phase:'reveal', role:初始身份, action_was_fake, info, voted, users}`。`info` 根据初始牌和冻结的操作按需推导：
+返回 `{ok:true, phase:'reveal', role:初始身份, info, voted, users}`。`info` 根据初始牌和冻结的操作按需推导：
 
 - 狼人：其他初始狼人；独狼另得选中的中央牌。
 - 爪牙：全部初始狼人。
@@ -118,9 +118,9 @@
 - 强盗：交换目标及交换完成当时得到的牌，不是最终身份。
 - 捣蛋鬼：交换的两个目标，不给牌面。
 - 失眠者：按强盗先、捣蛋鬼后的顺序推导最终身份。
-- 村民：空对象，假操作不生效。
+- 村民：空对象。
 
-`action_was_fake` 仅在揭晓时返回，说明刚才的选择是否为不生效的伪装操作；操作阶段不得提前透露。
+不再返回 `action_was_fake`；掩护点选没有服务端记录。
 
 仅结果阶段才能公开所有玩家的原始信息；揭晓阶段不能泄露他人原始操作或不属于自己的观察结果。
 
@@ -152,7 +152,7 @@
 
 ## 5. 前端结果规则
 
-- 交换顺序：强盗 → 捣蛋鬼；假操作不生效。
+- 交换顺序：强盗 → 捣蛋鬼；无需行动者不参与交换。
 - 唯一最高票者被处决，即使只有一票。
 - 最高票多人并列：无人处决，并列者作为胜负判断的候选人。
 - 最终玩家中有狼人：候选人中有狼人，好人胜；否则坏人胜。

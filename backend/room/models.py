@@ -34,16 +34,10 @@ class Player(models.Model):
     avatar = models.CharField(max_length=64, default="")
     # Real initial identity (dealt at start_game).
     role = models.CharField(max_length=16, null=True, blank=True)
-    # Only decoys need an extra stored role; real action roles use role directly.
-    fake_role = models.CharField(max_length=16, null=True, blank=True)
-    # Raw displayed-interface choice; {} means not submitted. Decoys have no effect.
+    # Raw real action choice; {} also represents a player with no action.
     choice = models.JSONField(default=dict)
     # NULL = not voted; "" = abstain; otherwise the selected player.
     vote_target = models.CharField(max_length=7, null=True, default=None)
-
-    @property
-    def display_role(self):
-        return self.fake_role or self.role
 
     class Meta:
         unique_together = (("room", "userid"),)
