@@ -678,3 +678,29 @@ dialog::backdrop {
 }
 ::-webkit-scrollbar-thumb:hover { background-color: rgba(255, 255, 255, 0.3); }
 body { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.18) var(--bg-0); }
+
+/* Shared create/join form. */
+.entry-form { padding: 26px 22px 22px; border-color: rgba(229, 189, 84, 0.25); background: radial-gradient(ellipse at 0 0, rgba(229, 189, 84, 0.08), transparent 55%), var(--surface); }
+.entry-heading { margin-bottom: 26px; }
+.entry-heading h1 { margin: 0; font-size: 1.5rem; }
+.entry-group { margin-top: 20px; }
+.entry-group label { display: block; margin-bottom: 9px; font-weight: 600; font-size: 0.85rem; }
+.entry-form input { margin: 0; min-width: 0; padding: 12px; border-radius: 10px; background: rgba(5, 12, 23, 0.4); }
+.entry-form .field-row { gap: 6px; }
+.entry-form .field-row button { margin: 0; padding: 10px; font-size: 0.75rem; border-radius: 9px; }
+.entry-form .room-field input { font-family: ui-monospace, monospace; letter-spacing: 0.06em; }
+.field-hint { margin: 7px 0 0; color: var(--text-dim); font-size: 0.7rem; line-height: 1.6; }
+.entry-divider { height: 1px; margin-top: 24px; background: var(--border); }
+.entry-avatar { margin-top: 22px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
+.entry-avatar .avatar-title { margin: 0 0 12px; text-align: left; font-size: 0.85rem; letter-spacing: 0; }
+.entry-avatar .avatar-picker-row { flex-direction: row; justify-content: center; }
+.entry-avatar .avatar-preview { width: 54px; height: 54px; border-radius: 50%; }
+.entry-avatar .avatar-preview-wrap { display: grid; place-items: center; width: 66px; height: 66px; padding: 4px; border-radius: 50%; }
+.entry-avatar .avatar-picker-row > button:last-child { font-size: 0.75rem; }
+.entry-note { margin: 16px 0 20px; color: var(--text-dim); font-size: 0.72rem; line-height: 1.7; }
+.entry-submit { min-height: 46px; }
+.entry-form button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (max-width: 360px) {
+  .entry-form { padding: 22px 14px 18px; }
+  .entry-form .field-row button { padding: 10px 8px; }
+}

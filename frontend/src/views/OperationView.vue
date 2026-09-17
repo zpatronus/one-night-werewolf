@@ -206,29 +206,33 @@ async function submit() {
 
 <template>
   <div v-if="state">
-    <div class="container countdown-ring">
-      <div class="ring">{{ countdown }}</div>
-      <div class="muted">剩余时间</div>
-    </div>
+    <header class="container ops-header">
+      <h1>夜间操作</h1>
+      <div class="ops-clock" role="timer" aria-label="夜间操作剩余时间">
+        <span>剩余时间</span><strong>{{ countdown }}</strong>
+      </div>
+    </header>
 
     <!-- 操作面板：只显示"我"已提交到服务器的 ops（由服务器 response 渲染），
          其他玩家的操作一律保密，绝不展示谁已完成/未完成。 -->
-    <div v-if="role" class="container role-banner">
-      <span class="role-emoji">{{ roleIcon(role) }}</span>
-      <div><b>你的初始身份：{{ roleName(role) }}</b></div>
-      <p class="muted" style="font-size:13px;margin:6px 0 0">
+    <div v-if="role" class="container ops-identity">
+      <div class="ops-role">
+        <span class="ops-role-icon" aria-hidden="true">{{ roleIcon(role) }}</span>
+        <div><span class="ops-label">你的初始身份</span><h2>{{ roleName(role) }}</h2></div>
+      </div>
+      <p class="ops-hint">
         {{ roleHint }}
       </p>
       <div v-if="requiresAction && (confirmed || state.my_choice?.type)" class="submitted-card">
-        <div class="submitted-head">✅ 我的行动已提交</div>
+        <div class="submitted-head">✓ 已提交</div>
         <div class="submitted-body">{{ submittedOpsText() }}</div>
         <div class="muted submitted-foot">如需修改，重新提交即可。</div>
       </div>
     </div>
 
-    <div v-if="!requiresAction" class="container">
-      <h2>你的身份夜间无需操作</h2>
-      <p class="muted">请随意点选下方选项，避免其他玩家从你的操作动作猜测身份。点选不会影响游戏结果。</p>
+    <div v-if="!requiresAction" class="container ops-panel">
+      <h2>无需夜间操作</h2>
+      <p class="muted">可随意点选，避免他人从动作猜测身份。点选不影响结果。</p>
       <div class="dir">
         <button v-for="i in 3" :key="i" type="button" class="mode-btn"
           :class="{ selected: coverPick === i }" :aria-pressed="coverPick === i"
@@ -238,26 +242,28 @@ async function submit() {
       <p v-if="pollError" class="error">{{ errorText(pollError) }}</p>
     </div>
 
-    <div v-else class="container">
+    <div v-else class="container ops-panel">
+      <h2>选择目标</h2>
       <template v-if="isSeer()">
-        <div class="dir" style="margin-bottom:14px">
+        <div class="ops-modes">
           <button class="mode-btn" :class="{ selected: mode === 'player' }" @click="mode = 'player'">看一名玩家</button>
           <button class="mode-btn" :class="{ selected: mode === 'center' }" @click="mode = 'center'">看中央 2 张</button>
         </div>
       </template>
 
       <template v-if="isSelectPlayers() || (isSeer() && mode === 'player')">
-        <div class="muted" style="margin-bottom:8px">
+        <div class="ops-help">
           <span v-if="role === 'troublemaker'">选择两位玩家，交换他们手上的身份（不能选自己）</span>
           <span v-else-if="role === 'robber'">选择一位玩家，与他交换身份（不能选自己）</span>
           <span v-else>选择一位玩家窥视他的身份</span>
         </div>
         <div class="select-grid">
-          <div
+          <button type="button"
             v-for="u in others"
             :key="u.userid"
             class="select-card"
             :class="{ selected: sel.a === u.userid || sel.b === u.userid }"
+            :aria-pressed="sel.a === u.userid || sel.b === u.userid"
             @click="pickPlayer(u.userid)"
           >
             <span v-if="sel.a === u.userid || sel.b === u.userid" class="pick-tag">
@@ -265,32 +271,34 @@ async function submit() {
             </span>
             <img :src="avatarUrl(u.avatar)" alt="" />
             <span class="select-name">{{ u.userid }}</span>
-          </div>
+          </button>
         </div>
       </template>
 
       <template v-if="isCenterPicker()">
-        <div class="muted" style="margin-bottom:8px">
+        <div class="ops-help">
           <span v-if="role === 'seer'">选择 2 张中央牌窥视（按顺序分别查看）</span>
           <span v-else-if="role === 'werewolf'">你是独狼，选择一张中央牌窥视</span>
         </div>
-        <div class="dir" style="justify-content:space-around">
+        <div class="center-grid">
           <button
             v-for="i in 3"
             :key="i"
-            class="center-btn"
+            class="center-btn" type="button"
+            :aria-pressed="role === 'seer' ? sel.picks.includes(i - 1) : sel.center === i - 1"
             :class="{ selected: (role === 'seer' ? sel.picks.includes(i - 1) : sel.center === i - 1) }"
             @click="pickCenter(i - 1)"
           >
+            <span class="card-moon" aria-hidden="true">☾</span>
             <span class="center-tag">{{ role === 'seer' ? centerTag(i - 1) : '' }}</span>第 {{ i }} 张
           </button>
         </div>
       </template>
 
-      <p class="status" style="margin-top:14px">{{ selectionText() }}</p>
+      <p class="ops-selection" role="status">{{ selectionText() }}</p>
 
       <button class="btn-primary btn-block" style="margin-top:6px" :disabled="!completed() || busy" @click="submit">
-        {{ confirmed && completed() ? '更新提交' : '确认提交' }}
+        {{ busy ? '提交中…' : confirmed && completed() ? '更新提交' : '确认提交' }}
       </button>
       <p v-if="err || pollError" class="error">{{ err || errorText(pollError) }}</p>
     </div>
@@ -298,81 +306,44 @@ async function submit() {
 </template>
 
 <style scoped>
-.mode-btn.selected,
-.center-btn.selected {
-  border-color: var(--accent);
-  background: rgba(229, 189, 84, 0.14);
-  color: var(--accent);
-}
-.mode-btn { flex: 1; white-space: nowrap; }
-.center-btn { min-width: 92px; min-height: 64px; font-size: 1rem; position: relative; }
-.center-tag { color: var(--accent); font-weight: 800; }
-.select-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  width: 96px;
-  padding: 10px 6px 8px;
-  border: 2px solid transparent;
-  border-radius: 12px;
-  cursor: pointer;
-}
-.select-card.selected {
-  border-color: var(--accent);
-  background: rgba(229, 189, 84, 0.10);
-}
-.select-grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-}
-.select-card img {
-  width: 65px;
-  height: 65px;
-  border-radius: 50%;
-  pointer-events: none;
-}
-.select-name {
-  font-size: 1rem;
-  font-weight: 600;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.pick-tag {
-  position: absolute;
-  top: 4px;
-  right: 6px;
-  color: var(--accent);
-  font-weight: 800;
-  font-size: 1rem;
-}
-.submitted-card {
-  margin-top: 14px;
-  padding: 12px 14px;
-  border: 1px solid var(--good);
-  border-radius: 12px;
-  background: rgba(52, 168, 83, 0.08);
-}
-.submitted-head {
-  font-size: 0.8rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  color: var(--good);
-  margin-bottom: 6px;
-}
-.submitted-body {
-  font-size: 1.05rem;
-  font-weight: 700;
-  line-height: 1.5;
-  color: var(--text);
-}
-.submitted-foot {
-  margin-top: 6px;
-  font-size: 0.78rem;
+.ops-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 20px 22px; border-color: rgba(229, 189, 84, 0.25); background: radial-gradient(ellipse at 0 0, rgba(229, 189, 84, 0.08), transparent 65%), var(--surface); }
+.ops-header h1 { margin: 0; font-size: 1.4rem; }
+.ops-clock { text-align: right; }
+.ops-clock > span { display: block; color: var(--text-dim); font-size: 0.68rem; margin-bottom: 4px; }
+.ops-clock strong { display: block; min-width: 6ch; color: var(--accent-hover); font-size: 1.5rem; font-variant-numeric: tabular-nums; font-weight: 600; }
+.ops-identity, .ops-panel { padding: 22px; }
+.ops-role { display: flex; align-items: center; gap: 14px; }
+.ops-role-icon { display: grid; place-items: center; width: 60px; height: 60px; flex-shrink: 0; border: 1px solid rgba(229, 189, 84, 0.22); border-radius: 16px; background: rgba(229, 189, 84, 0.06); font-size: 2rem; }
+.ops-label { font-size: 0.72rem; color: var(--text-dim); }
+.ops-role h2 { margin: 5px 0 0; font-size: 1.25rem; }
+.ops-hint { margin: 16px 0 0; font-size: 0.8rem; color: var(--text-dim); line-height: 1.75; }
+.ops-panel h2 { margin: 0 0 16px; font-size: 1.05rem; }
+.ops-panel > .muted { font-size: 0.8rem; line-height: 1.75; }
+.ops-modes { display: flex; gap: 5px; padding: 4px; border: 1px solid var(--border); border-radius: 12px; background: rgba(5, 12, 23, 0.3); margin-bottom: 18px; }
+.mode-btn { flex: 1; white-space: nowrap; margin: 0; min-height: 42px; padding: 10px 8px; font-size: 0.78rem; border-radius: 8px; }
+.mode-btn.selected, .center-btn.selected, .select-card.selected { border-color: var(--accent); background: rgba(229, 189, 84, 0.10); color: var(--accent-hover); }
+.ops-help { font-size: 0.78rem; line-height: 1.7; color: var(--text-dim); margin-bottom: 14px; }
+.ops-help span { color: inherit; }
+.select-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.select-card { position: relative; display: flex; align-items: center; gap: 9px; min-width: 0; margin: 0; padding: 14px 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); text-align: left; }
+.select-card img { width: 38px; height: 38px; flex-shrink: 0; border-radius: 50%; object-fit: cover; }
+.select-name { font-size: 0.82rem; font-weight: 600; overflow-wrap: anywhere; min-width: 0; }
+.pick-tag { position: absolute; top: 3px; right: 5px; color: var(--accent); font-size: 0.75rem; }
+.center-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.center-btn { position: relative; min-width: 0; min-height: 120px; padding: 14px 4px; margin: 0; font-size: 0.8rem; border: 1px solid var(--border-strong); border-radius: 12px; background: linear-gradient(145deg, rgba(229, 189, 84, 0.06), transparent), var(--surface-2); }
+.card-moon { display: block; color: var(--accent); font-size: 2rem; margin-bottom: 14px; }
+.center-tag { color: var(--accent); font-weight: 700; }
+.ops-selection { margin: 20px 0 12px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--text-dim); font-size: 0.8rem; line-height: 1.7; overflow-wrap: anywhere; }
+.submitted-card { margin-top: 18px; padding: 14px; border: 1px solid rgba(229, 189, 84, 0.25); border-left: 2px solid var(--accent); border-radius: 4px 10px 10px 4px; background: rgba(229, 189, 84, 0.04); }
+.submitted-head { color: var(--accent); font-size: 0.75rem; margin-bottom: 8px; }
+.submitted-body { font-size: 0.9rem; font-weight: 600; line-height: 1.7; overflow-wrap: anywhere; }
+.submitted-foot { margin-top: 8px; font-size: 0.72rem; }
+.ops-panel button:focus-visible { outline: 2px solid var(--accent-hover); outline-offset: 3px; }
+@media (max-width: 360px) {
+  .ops-header, .ops-identity, .ops-panel { padding: 18px 14px; }
+  .ops-header h1 { font-size: 1.2rem; }
+  .select-card { padding: 14px 8px; gap: 7px; }
+  .select-card img { width: 32px; height: 32px; }
+  .center-grid { gap: 7px; }
 }
 </style>

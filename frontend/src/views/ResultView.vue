@@ -143,7 +143,7 @@ const voteChart = computed(() => {
 <template>
   <div v-if="data">
     <section class="container result-hero">
-      <span class="result-eyebrow">一夜落幕 · 真相揭晓</span>
+      <span class="result-eyebrow">本局结果</span>
       <div class="result-emblem" aria-hidden="true">{{ data.reason === 'no_evil_but_votes' ? '☾' : data.good_win ? '☀' : '☾' }}</div>
       <h1>{{ data.reason === 'no_evil_but_votes' ? '全员落败' : data.reason === 'no_evil_players' ? '全员获胜' : data.good_win ? '好人阵营获胜' : '狼人阵营获胜' }}</h1>
       <p class="result-reason">{{ verdictText(data.reason) }}</p>
@@ -165,7 +165,6 @@ const voteChart = computed(() => {
       <div class="next-room-heading">
         <div>
           <h2 id="next-room-title">再来一局</h2>
-          <p>沿用你的玩家身份，继续下一场。</p>
         </div>
         <div class="next-room-code">
           <span>下一个房间</span>
@@ -191,7 +190,7 @@ const voteChart = computed(() => {
 
     <!-- 投票柱状图：横向条，长度按得票数比例 -->
     <div class="container vote-section">
-      <div class="result-section-heading"><div><span class="result-eyebrow">每一票，都有答案</span><h2>投票分布</h2></div><span class="section-count">{{ players.length }} 位玩家</span></div>
+      <div class="result-section-heading"><div><h2>投票分布</h2></div><span class="section-count">{{ players.length }} 位玩家</span></div>
       <div v-if="voteChart.length" class="vote-chart">
         <div v-for="e in voteChart" :key="e.target" class="vote-bar-row">
           <span class="vote-target" :class="targetFaction(e.target)">
@@ -238,7 +237,7 @@ const voteChart = computed(() => {
 
     <!-- 每位玩家：最初身份 → 最终身份 + 胜负 -->
     <div class="container">
-      <div class="result-section-heading"><div><span class="result-eyebrow">从夜晚到天亮</span><h2>身份揭晓</h2></div><span class="section-count">初始 → 最终</span></div>
+      <div class="result-section-heading"><div><h2>身份揭晓</h2></div><span class="section-count">初始 → 最终</span></div>
       <div class="transition-list">
         <div
           v-for="p in players"
@@ -266,7 +265,7 @@ const voteChart = computed(() => {
 
     <!-- 夜晚操作回放（后端 JSON，前端渲染） -->
     <div v-if="ops.length" class="container">
-      <div class="result-section-heading"><div><span class="result-eyebrow">按生效顺序，还原整夜</span><h2>夜间回放</h2></div></div>
+      <div class="result-section-heading"><div><h2>夜间回放</h2></div></div>
       <div class="ops-list">
         <div v-for="(op, i) in ops" :key="i" class="ops-step">
           <span class="ops-index">{{ i + 1 }}</span>

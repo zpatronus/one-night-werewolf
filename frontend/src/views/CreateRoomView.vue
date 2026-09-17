@@ -59,29 +59,36 @@ async function submit() {
 </script>
 
 <template>
-  <div class="container">
-    <div class="subtitle">房间ID</div>
-    <div class="field-row">
-      <input v-model.trim="roomid" maxlength="6" placeholder="房间ID" />
-      <button type="button" @click="roomid = randomRoomId()">随机</button>
-      <button type="button" @click="nextId">下一个</button>
+  <form class="container entry-form" @submit.prevent="submit">
+    <header class="entry-heading"><h1>创建房间</h1></header>
+    <div class="entry-group">
+      <label for="room-id">房间号</label>
+      <div class="field-row room-field">
+        <input id="room-id" v-model.trim="roomid" maxlength="6" placeholder="房间号" autocapitalize="off" spellcheck="false" aria-describedby="room-hint" />
+        <button type="button" @click="roomid = randomRoomId()">随机</button>
+        <button type="button" @click="nextId">下一个</button>
+      </div>
+      <p id="room-hint" class="field-hint">1–6 位字母或数字，区分大小写</p>
     </div>
-    <div class="subtitle">玩家ID</div>
-    <input v-model.trim="userid" maxlength="7" placeholder="玩家ID" />
-    <div class="subtitle">玩家密码</div>
-    <div class="field-row">
-      <input v-model.trim="userpsw" maxlength="6" placeholder="玩家密码" />
-      <button type="button" @click="nextPsw">随机</button>
+    <div class="entry-divider"></div>
+    <div class="entry-group">
+      <label for="player-id">玩家名</label>
+      <input id="player-id" v-model.trim="userid" maxlength="7" placeholder="玩家名" autocapitalize="off" spellcheck="false" aria-describedby="player-hint" />
+      <p id="player-hint" class="field-hint">1–7 位字母、数字或下划线</p>
     </div>
-    <AvatarField v-model="avatar" />
-    <ul class="tips">
-      <li>不要使用常用密码，建议点击“随机”。</li>
-      <li>玩家密码不是房间密码，网站不存在房间密码。</li>
-      <li>建议随机输入，密码会明文保存在本地，刷新后自动填入，防止同房间他人窥探你的身份。</li>
-    </ul>
-    <button class="btn-primary btn-block" :disabled="!canSave || busy" @click="submit">
+    <div class="entry-group">
+      <label for="player-password">玩家密码</label>
+      <div class="field-row">
+        <input id="player-password" v-model.trim="userpsw" maxlength="6" placeholder="玩家密码" autocapitalize="off" spellcheck="false" aria-describedby="password-hint" />
+        <button type="button" @click="nextPsw">随机</button>
+      </div>
+      <p id="password-hint" class="field-hint">用于重新加入，非房间密码。1–6 位字母或数字。</p>
+    </div>
+    <div class="entry-avatar"><AvatarField v-model="avatar" /></div>
+    <p class="entry-note">密码会明文保存在本机。请使用随机密码，勿使用常用密码。</p>
+    <button type="submit" class="btn-primary btn-block entry-submit" :disabled="!canSave || busy">
       {{ busy ? '创建中…' : '创建房间' }}
     </button>
-    <div class="status">{{ err }}</div>
-  </div>
+    <p v-if="err" class="error" role="alert">{{ err }}</p>
+  </form>
 </template>

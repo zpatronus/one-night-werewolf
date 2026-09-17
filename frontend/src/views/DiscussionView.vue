@@ -36,7 +36,7 @@ const busy = ref(false)
 const loading = ref(false)
 const target = ref('')             // "" = abstain
 const confirmOpen = ref(false)     // vote double-check dialog
-const showRole = ref(true)         // role info shown by default, hide on demand
+const showRole = ref(false)        // discussion info stays hidden until requested
 
 async function loadReveal() {
   if (loading.value) return
@@ -150,8 +150,8 @@ async function vote() {
   <div v-if="me">
     <section v-if="props.infoOnly" class="container night-info" aria-labelledby="night-info-title">
       <header class="night-heading">
-        <span class="night-eyebrow">夜晚结束 · 私人信息</span>
-        <h1 id="night-info-title">今夜，你得知了什么</h1>
+        <span class="night-eyebrow">夜间信息</span>
+        <h1 id="night-info-title">查看结果</h1>
         <p>请安静阅读，管理好表情。</p>
       </header>
 
@@ -182,16 +182,13 @@ async function vote() {
           <span>{{ remaining }}<small>秒</small></span>
         </div>
         <div class="night-countdown-copy">
-          <strong>片刻后，开始讨论</strong>
+          <strong>即将开始讨论</strong>
           <p>倒计时结束后自动进入</p>
         </div>
       </footer>
-      <p class="night-reminder">无需展示屏幕 · 讨论时仍可回看信息</p>
     </section>
     <section v-else class="container discussion-header">
-      <span class="night-eyebrow">天亮了 · 听听每个人的故事</span>
       <h1>讨论与投票</h1>
-      <p class="discussion-intro">分享线索，找出说法中的破绽。</p>
       <div class="discussion-context">
         <div class="discussion-player">
           <img :src="meCard.avatar" :alt="meCard.userid" />
@@ -234,10 +231,9 @@ async function vote() {
 
     <section v-if="!props.infoOnly" class="container discussion-vote">
       <div class="section-heading">
-        <div><span class="night-label">讨论之后，再做决定</span><h2>投出你的一票</h2></div>
-        <span class="vote-badge">一人一票</span>
+        <div><h2>投票</h2></div>
       </div>
-      <p class="vote-help">选择一位其他玩家，或选择弃权。提交后不可更改。</p>
+      <p class="vote-help">选择玩家或弃权，提交后不可更改。</p>
 
       <div class="select-grid" aria-label="选择投票对象">
         <button v-for="u in users" :key="u.userid" type="button"
@@ -325,7 +321,6 @@ async function vote() {
 .night-clock small { color: var(--text-dim); font-size: 0.65rem; }
 .night-countdown-copy strong { font-size: 0.88rem; font-weight: 600; }
 .night-countdown-copy p { margin: 6px 0 0; color: var(--text-dim); font-size: 0.75rem; }
-.night-reminder { margin: 20px 0 0; text-align: center; color: var(--text-dim); font-size: 0.7rem; }
 @media (max-width: 360px) {
   .night-info { padding: 22px 16px 18px; }
   .night-observation { padding: 14px; }
@@ -361,12 +356,11 @@ async function vote() {
 .discussion-private .night-identity h2 { font-size: 1.1rem; }
 .discussion-private .night-observation p { margin: 0; font-size: 0.9rem; }
 .private-hidden { margin: 16px 0 0; color: var(--text-dim); font-size: 0.8rem; }
-.vote-badge { color: var(--accent); border: 1px solid rgba(229, 189, 84, 0.22); border-radius: 6px; padding: 5px 8px; font-size: 0.65rem; flex-shrink: 0; }
 .vote-help { color: var(--text-dim); font-size: 0.78rem; line-height: 1.7; margin: 14px 0 18px; }
-.select-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
-.select-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 9px; min-width: 0; margin: 0; padding: 18px 6px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
+.select-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.select-card { position: relative; display: flex; align-items: center; gap: 9px; min-width: 0; margin: 0; padding: 14px 10px; text-align: left; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
 .select-card.selected, .abstain-choice.selected { border-color: var(--accent); background: rgba(229, 189, 84, 0.09); }
-.select-card img { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; }
+.select-card img { width: 38px; height: 38px; flex-shrink: 0; border-radius: 50%; object-fit: cover; }
 .select-name { font-size: 0.85rem; font-weight: 600; max-width: 100%; overflow-wrap: anywhere; }
 .pick-tag { position: absolute; top: 5px; right: 6px; color: var(--accent); font-size: 0.75rem; }
 .abstain-choice { display: flex; align-items: center; width: 100%; gap: 12px; margin: 12px 0 0; padding: 12px 14px; text-align: left; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; }
@@ -380,6 +374,6 @@ async function vote() {
 @media (max-width: 360px) {
   .discussion-header, .discussion-private, .discussion-vote { padding: 18px 14px; }
   .select-grid { gap: 6px; }
-  .select-card img { width: 44px; height: 44px; }
+  .select-card img { width: 32px; height: 32px; }
 }
 </style>

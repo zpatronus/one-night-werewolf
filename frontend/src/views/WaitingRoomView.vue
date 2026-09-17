@@ -162,36 +162,26 @@ watch(liveBoard, (b, prev) => {
 
 <template>
   <div>
-    <div class="container">
-      <div class="info-grid">
-        <div class="info-row">
-          <span class="info-label">房间ID</span>
-          <span class="info-value">{{ creds().roomid }}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">你的玩家ID</span>
-          <span class="info-value">{{ creds().userid }}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">玩家数量</span>
-          <span class="info-value">{{ n() }}</span>
-        </div>
+    <section class="container lobby-header">
+      <div class="lobby-title"><h1>等待室</h1><span class="lobby-count">{{ n() }} / 10 人</span></div>
+      <div class="lobby-room">
+        <div><span class="lobby-label">房间号</span><strong>{{ creds().roomid }}</strong></div>
+        <button id="copyInviteButton" class="lobby-invite" @click="copyInvite">
+          {{ copied ? '已复制' : '复制邀请链接' }}
+        </button>
       </div>
-      <button id="copyInviteButton" class="btn-primary btn-block" @click="copyInvite">
-        {{ copied ? '已复制！' : '复制邀请链接' }}
-      </button>
-
-      <div class="subtitle">房间内的玩家</div>
+      <div class="lobby-roster-heading"><h2>玩家</h2><span>你是 {{ creds().userid }}</span></div>
       <div class="player-list">
         <div v-for="u in users" :key="u.userid" class="player-card">
           <img class="player-avatar" :src="avatarOf(u.userid)" :alt="u.userid" />
-          <span class="player-name">{{ u.userid }}{{ state.host === u.userid ? ' 👑' : '' }}</span>
+          <span class="player-name">{{ u.userid }}</span>
+          <span class="player-tag">{{ state?.host === u.userid ? '房主' : u.userid === creds().userid ? '你' : '' }}</span>
         </div>
       </div>
-    </div>
+    </section>
 
-    <div class="container">
-      <div class="subtitle">当前板子</div>
+    <section class="container lobby-board">
+      <div class="lobby-title"><h2>本局板子</h2><span class="lobby-label">玩家牌 + 3 张中央牌</span></div>
       <div class="board current-template">
         <span
           v-for="role in chips"
@@ -204,14 +194,14 @@ watch(liveBoard, (b, prev) => {
       </div>
 
       <template v-if="isHost()">
-        <div class="subtitle config-title">配置板子</div>
+        <h3 class="config-title">编辑板子</h3>
         <div class="config-panel">
           <div v-for="role in ROLE_ORDER" :key="role" class="board-row">
             <span>{{ roleIcon(role) }} {{ roleName(role) }}</span>
             <span class="board-stepper">
-              <button @click="adjust(role, -1)" :disabled="saving || starting || (board[role] || 0) <= 0">−</button>
+              <button :aria-label="`减少${roleName(role)}`" @click="adjust(role, -1)" :disabled="saving || starting || (board[role] || 0) <= 0">−</button>
               <span class="board-count">{{ board[role] || 0 }}</span>
-              <button @click="adjust(role, 1)" :disabled="saving || starting || atMax(role)">+</button>
+              <button :aria-label="`增加${roleName(role)}`" @click="adjust(role, 1)" :disabled="saving || starting || atMax(role)">+</button>
             </span>
           </div>
           <p class="board-sum" :class="boardValid ? '' : 'error'">
@@ -225,12 +215,13 @@ watch(liveBoard, (b, prev) => {
           <button class="btn-primary btn-block" :disabled="saving || starting || !dirty" @click="saveBoard">
             {{ saving ? '提交中…' : '提交板子' }}
           </button>
-          <p v-if="dirty" class="muted">修改尚未提交，请提交后再开始游戏。</p>
+          <p v-if="dirty" class="muted">有未提交的修改。</p>
         </div>
       </template>
-      <p v-else class="subsubtitle" style="text-align:center">板子由房主配置，上方为当前内容。</p>
-    </div>
+      <p v-else class="lobby-label">由房主配置</p>
+    </section>
 
+    <section class="container lobby-start">
     <p class="waiting-note">
       <template v-if="isHost()">
         {{ n() < MIN ? `还差 ${MIN - n()} 名玩家即可开始` : '请等待玩家到齐后再开始游戏' }}
@@ -245,6 +236,8 @@ watch(liveBoard, (b, prev) => {
       开始游戏
     </button>
 
+    </section>
+
     <ConfirmDialog
       v-if="confirmOpen && isHost()"
       title="准备开始？"
@@ -256,7 +249,7 @@ watch(liveBoard, (b, prev) => {
       @cancel="confirmOpen = false"
     />
 
-    <div v-if="err" class="status surface-panel">{{ err }}</div>
+    <div v-if="err" class="error" role="alert">{{ err }}</div>
   </div>
 </template>
 
@@ -264,10 +257,10 @@ watch(liveBoard, (b, prev) => {
 .current-template {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
+  justify-content: flex-start;
+  gap: 6px;
   background: rgba(229, 189, 84, 0.05);
-  border: 1px dashed rgba(229, 189, 84, 0.3);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 12px;
 }
@@ -275,10 +268,10 @@ watch(liveBoard, (b, prev) => {
 .board-chip {
   display: inline-block;
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  font-size: 0.9rem;
+  font-size: 0.78rem;
   font-weight: 600;
   color: var(--text);
   transition: border-color 0.15s, box-shadow 0.15s;
@@ -321,5 +314,39 @@ watch(liveBoard, (b, prev) => {
   font-size: 0.85rem;
   font-weight: 600;
   text-align: center;
+}
+.lobby-header, .lobby-board, .lobby-start { padding: 22px; }
+.lobby-header { border-color: rgba(229, 189, 84, 0.25); background: radial-gradient(ellipse at 0 0, rgba(229, 189, 84, 0.08), transparent 65%), var(--surface); }
+.lobby-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.lobby-title h1 { margin: 0; font-size: 1.5rem; }
+.lobby-title h2, .lobby-roster-heading h2 { margin: 0; font-size: 1.05rem; }
+.lobby-count { padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; color: var(--accent); font-size: 0.8rem; }
+.lobby-room { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; border: 1px solid rgba(229, 189, 84, 0.2); border-radius: 12px; background: rgba(229, 189, 84, 0.04); }
+.lobby-label { color: var(--text-dim); font-size: 0.72rem; }
+.lobby-room strong { display: block; margin-top: 5px; font-family: ui-monospace, monospace; font-size: 1.4rem; letter-spacing: 0.08em; color: var(--accent-hover); }
+.lobby-invite { padding: 9px 10px; margin: 0; font-size: 0.75rem; flex-shrink: 0; }
+.lobby-roster-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 24px 0 14px; }
+.lobby-roster-heading > span { font-size: 0.72rem; color: var(--text-dim); }
+.player-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.player-card { flex: 0 0 calc((100% - 16px) / 3); align-items: center; text-align: center; min-width: 0; padding: 14px 6px 8px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; }
+.player-avatar { display: block; width: 46px; height: 46px; margin-inline: auto; }
+.player-name { font-size: 0.8rem; max-width: 100%; overflow-wrap: anywhere; }
+.player-tag { min-height: 15px; font-size: 0.65rem; color: var(--accent); }
+.config-title { font-size: 0.85rem; margin-bottom: 12px; }
+.config-panel { border: 0; padding: 0; }
+.board-row { padding: 10px 0; border-bottom-style: solid; font-size: 0.85rem; }
+.board-stepper { gap: 4px; }
+.board-stepper button { width: 34px; height: 34px; padding: 0; border-radius: 8px; }
+.board-sum { margin-top: 16px; padding: 10px; border-radius: 8px; background: var(--surface-2); font-size: 0.78rem; }
+.lobby-start .waiting-note { margin: 0; padding: 0; border: 0; background: none; box-shadow: none; backdrop-filter: none; font-size: 0.82rem; }
+.lobby-start > button { margin-top: 14px; }
+.lobby-header button:focus-visible, .board-stepper button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (max-width: 360px) {
+  .lobby-header, .lobby-board, .lobby-start { padding: 18px 14px; }
+  .lobby-room { padding: 12px; }
+  .lobby-room strong { font-size: 1.2rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .board-chip.blink { animation: none; }
 }
 </style>
