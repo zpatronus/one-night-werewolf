@@ -115,7 +115,12 @@
       <dl class="faq-list">
         <div class="faq-item">
           <dt>为什么没有一般狼人杀那样的上帝喊人依次睁眼环节？</dt>
-          <dd>依次睁眼很花时间，还要担心时长、声音这些信息在各阶段之间泄漏，线上化时还得用语音合成来「喊话」——又麻烦又多余。其实这件事有更省事、也一样正确的做法。每个角色的夜晚都可以被拆成两部分：先操作，再看信息。比如强盗，第一步选一个人交换，第二步系统才告诉他换到什么牌；失眠者不用操作，第二步由系统告诉他自己的牌。可以观察到：在第一阶段，所有角色的操作互不依赖彼此；在第二阶段，所有角色的信息展示也互不依赖彼此。但有些角色的第二阶段，依赖的是其他角色的第一阶段——比如失眠者看到的牌，就取决于强盗、捣蛋鬼之前的操作。正因为这样，我们可以安全地让所有角色并发进行第一阶段，由服务器按规则处理每个人的操作，再把结果在第二阶段呈现给各自。</dd>
+          <dd>
+            <p>如果把每个玩家看成一个进程，上帝依次喊人睁眼，就是让这些进程一个接一个地运行。不过，能不能并行，关键要看它们之间有没有数据依赖，而不是规则里有没有写先后顺序。</p>
+            <p>拿强盗和捣蛋鬼来说：强盗要选一个人交换身份，捣蛋鬼要选另外两个人交换身份。两个人作出选择时，都不需要知道对方选了谁，所以这部分可以同时进行。但执行交换时，必须先处理强盗，再处理捣蛋鬼；失眠者则要等所有交换结束，才能查看自己的最终身份。也就是说，需要按顺序执行的是结算，不是玩家点屏幕的过程。</p>
+            <p>因此，我们把夜晚拆成三步：同时收集选择，按规则结算，再分别显示信息。操作截止时间就是一个同步点：时间到了，服务器固定所有人的选择，为没提交的人补上默认操作，然后开始结算。谁的请求先到，不影响角色的行动顺序。显示结果时也要区分读取的是哪个时刻的状态：预言家看初始身份，强盗看自己刚交换到的身份，失眠者看最终身份。</p>
+            <p>这和并行程序的思路一样：没有依赖的部分同时做，有依赖的部分保留顺序。这样既能遵守夜间规则，也不用让所有人轮流等着操作手机。</p>
+          </dd>
         </div>
         <div class="faq-item">
           <dt>为什么无需行动也要点选屏幕？</dt>
@@ -177,6 +182,8 @@
 .faq-list > div + div { border-top: 1px solid var(--border); }
 .faq-list dt { font-size: 0.88rem; font-weight: 700; line-height: 1.7; color: var(--accent); }
 .faq-list dd { margin: 8px 0 0; font-size: 0.82rem; line-height: 1.95; color: var(--text-dim); }
+.faq-list dd p { margin: 10px 0 0; font-size: inherit; line-height: inherit; }
+.faq-list dd p:first-child { margin-top: 0; }
 .faq-list b { color: var(--text); }
 .rules-content dd { margin: 4px 0 0; color: var(--text-dim); font-size: 0.78rem; line-height: 1.7; }
 .win-rules > div { margin-top: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
