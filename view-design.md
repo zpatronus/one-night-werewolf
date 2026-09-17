@@ -144,11 +144,11 @@ Home ──nav──▶ CreateRoom ──▶ JoinRoom ──▶ WaitingRoom ─�
   - 真实行动的提交按钮；无需行动者仅显示本地点选按钮。
 - **行动与掩护点选**（服务端在 `phase='op'` 的 `/api/room_state/` 响应里下发 `role` 字段）：
   - 真身份有夜间行动（独狼/预言家/强盗/捣蛋鬼）→ 显示其操作界面（真捣蛋鬼看到“你是捣蛋鬼，选两张”）。
-  - 无需选择（有狼同伴的狼人 / 爪牙 / 失眠者 / 村民）→ 服务端返回 `role=null`；前端明确提示无需操作，并提供本地点选按钮，不显示具体身份、不提交选择。
+  - 无需选择（有狼同伴的狼人 / 爪牙 / 失眠者 / 村民）→ 服务端返回初始身份 `role` 和 `requires_action=false`；前端显示身份与无需操作提示，并提供本地点选按钮，不提交选择；夜间信息在揭晓阶段显示。
   - **阶段一不显示任何结果**：所选目标/中央牌一律背朝上，凭名字/位置点选。
 - **轮询**：`setInterval(2s) → POST /api/room_state/ {roomid,userid,userpsw}`（§0.1 唯一端点）；`phase=op` 时 payload 为**提交同一套格式**：
   ```
-  { phase:'op', role, my_choice, submitted, submitted_count, total_count, deadline_ms }
+  { phase:'op', role, requires_action, my_choice, submitted, submitted_count, total_count, deadline_ms }
   ```
   - 用 `my_choice` 回显当前生效选择（丢包/重放也能恢复）。
   - 用 `submitted_count/total_count` 显示进度；`deadline_ms` 同步倒计时（本地计时为主，服务端兜底）。

@@ -65,15 +65,25 @@ test('cover selections stay local and cannot submit a night action', async () =>
   const { instance: c, state } = load('views/OperationView.vue', {
     '../api': { post: async () => { calls++; return { ok: true } } },
   })
-  state.value = { phase: 'op', role: null, my_choice: {} }
-  c.coverPick.value = 1
-  await c.submit()
-  c.coverPick.value = 3
-  await c.submit()
-  assert.equal(calls, 0)
-  assert.deepEqual(state.value.my_choice, {})
-  assert.equal(c.completed(), false)
-  assert.equal(c.buildChoice(), null)
+  for (const role of ['villager', 'insomniac', 'minion', 'werewolf']) {
+    state.value = { phase: 'op', role, requires_action: false, my_choice: {} }
+    c.coverPick.value = 1
+    await c.submit()
+    c.coverPick.value = 3
+    c.sel.center = 0
+    await c.submit()
+    assert.equal(c.role.value, role)
+    assert.equal(calls, 0)
+    assert.deepEqual(state.value.my_choice, {})
+    assert.equal(c.completed(), false)
+    assert.equal(c.buildChoice(), null)
+    assert.equal(c.isCenterPicker(), false)
+    if (role === 'insomniac') assert.match(c.roleHint.value, /最终身份将在揭晓阶段/)
+  }
+  state.value = { phase: 'op', role: 'werewolf', requires_action: true }
+  assert.equal(c.isCenterPicker(), true)
+  assert.equal(c.completed(), true)
+  assert.deepEqual(c.buildChoice(), { type: 'wolf', target: 'center_0' })
 })
 
 test('minion replay explicitly reports no werewolves', () => {
@@ -87,7 +97,7 @@ test('night action can retry after failure; seer needs exactly two centers', asy
   const { instance: c, state } = load('views/OperationView.vue', {
     '../api': { post: async () => ++calls === 1 ? { ok: false, error: 'network_error' } : { ok: true, phase: 'op' } },
   })
-  state.value = { role: 'seer' }
+  state.value = { role: 'seer', requires_action: true }
   c.mode.value = 'center'; c.sel.picks = [0]
   assert.equal(c.completed(), false)
   c.sel.picks = [0, 2]

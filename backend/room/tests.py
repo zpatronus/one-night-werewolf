@@ -232,7 +232,9 @@ class GameChecks(TestCase):
         for p in self.players:
             p.refresh_from_db()
             state = self.call(views.room_state, p)
-            self.assertIsNone(state['role'])
+            self.assertEqual(state['role'], p.role)
+            self.assertFalse(state['requires_action'])
+            self.assertNotIn('info', state)
             self.assertEqual(state['my_choice'], {})
             self.assertEqual(self.call(views.night_action, p,
                 choice={'type':'wolf','target':'center_0'})['error'], 'bad_choice')
@@ -254,7 +256,9 @@ class GameChecks(TestCase):
         with patch.object(game.random, 'shuffle', side_effect=shuffle):
             game.deal(self.room)
         for p in self.room.players.all():
-            self.assertEqual(self.call(views.room_state, p)["role"], p.role)
+            state = self.call(views.room_state, p)
+            self.assertEqual(state["role"], p.role)
+            self.assertTrue(state["requires_action"])
         self.expire(); self.call(views.room_state)
         result = self.call(views.reveal)
         self.assertIn('peek', result['info'])
@@ -263,7 +267,11 @@ class GameChecks(TestCase):
         self.room.players.update(role='villager')
         for p, role in zip(self.players, ['villager', 'minion', 'insomniac']):
             p.role = role; p.save()
-            self.assertIsNone(self.call(views.room_state, p)['role'])
+            state = self.call(views.room_state, p)
+            self.assertEqual(state['role'], role)
+            self.assertFalse(state['requires_action'])
+            self.assertNotIn('info', state)
+            self.assertNotIn('final_role', state)
         with patch.object(views, 'IS_DEV', True):
             self.assertEqual(self.call(views.room_state)['phase'], 'op')
             self.expire()

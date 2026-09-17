@@ -32,13 +32,21 @@ const countdown = computed(() => {
 })
 
 const role = computed(() => state.value?.role)
+const requiresAction = computed(() => state.value?.requires_action === true)
+const roleHint = computed(() => {
+  if (requiresAction.value) return '请按提示作出选择，夜间信息与行动结果将在揭晓阶段显示。'
+  if (role.value === 'insomniac') return '你无需选择目标，最终身份将在揭晓阶段显示。'
+  if (role.value === 'minion') return '你无需选择目标，狼人名单将在揭晓阶段显示。'
+  if (role.value === 'werewolf') return '你有狼人同伴，无需选择目标；同伴名单将在揭晓阶段显示。'
+  return '你没有夜间能力，请等待进入讨论与投票。'
+})
 const users = computed(() => sortPlayers(creds().roomid, state.value?.users || []))
 // You can never target yourself (robber swap / troublemaker swap / seer peek).
 const others = computed(() => users.value.filter((u) => u.userid !== creds().userid))
 
 const isSeer = () => role.value === 'seer'
 const isSelectPlayers = () => ['robber', 'troublemaker'].includes(role.value)
-const isCenterPicker = () => role.value === 'werewolf' || (role.value === 'seer' && mode.value === 'center')
+const isCenterPicker = () => requiresAction.value && (role.value === 'werewolf' || (role.value === 'seer' && mode.value === 'center'))
 
 // How many players this operating identity picks (0 = center pickers / none).
 function maxPicks() {
@@ -89,6 +97,7 @@ function centerTag(i) {
 }
 
 function completed() {
+  if (!requiresAction.value) return false
   const t = role.value
   if (t === 'troublemaker') return !!(sel.a && sel.b && sel.a !== sel.b)
   if (t === 'seer') return mode.value === 'center' ? sel.picks.length === 2 : !!sel.a
@@ -168,6 +177,7 @@ watch(state, (s) => {
 }, { immediate: true })
 
 function buildChoice() {
+  if (!requiresAction.value) return null
   const t = role.value
   if (t === 'troublemaker') return { type: 'troublemaker', target: sel.a, target2: sel.b }
   if (t === 'robber') return { type: 'robber', target: sel.a }
@@ -205,18 +215,18 @@ async function submit() {
          其他玩家的操作一律保密，绝不展示谁已完成/未完成。 -->
     <div v-if="role" class="container role-banner">
       <span class="role-emoji">{{ roleIcon(role) }}</span>
-      <div><b>你是 {{ roleName(role) }}</b></div>
+      <div><b>你的初始身份：{{ roleName(role) }}</b></div>
       <p class="muted" style="font-size:13px;margin:6px 0 0">
-        请按提示作出选择，夜间信息与行动结果将在下一阶段揭晓。
+        {{ roleHint }}
       </p>
-      <div v-if="confirmed || state.my_choice?.type" class="submitted-card">
+      <div v-if="requiresAction && (confirmed || state.my_choice?.type)" class="submitted-card">
         <div class="submitted-head">✅ 我的行动已提交</div>
         <div class="submitted-body">{{ submittedOpsText() }}</div>
         <div class="muted submitted-foot">如需修改，重新提交即可。</div>
       </div>
     </div>
 
-    <div v-if="!role" class="container">
+    <div v-if="!requiresAction" class="container">
       <h2>你的身份夜间无需操作</h2>
       <p class="muted">请随意点选下方选项，避免其他玩家从你的操作动作猜测身份。点选不会影响游戏结果。</p>
       <div class="dir">
@@ -224,7 +234,7 @@ async function submit() {
           :class="{ selected: coverPick === i }" :aria-pressed="coverPick === i"
           @click="coverPick = i">选项 {{ i }}</button>
       </div>
-      <p class="muted">{{ coverPick ? '已点选，可继续随意切换。' : '无需提交。' }} 倒计时结束后查看身份与夜间信息。</p>
+      <p class="muted">{{ coverPick ? '已点选，可继续随意切换。' : '无需提交。' }} 请等待倒计时结束。</p>
       <p v-if="pollError" class="error">{{ errorText(pollError) }}</p>
     </div>
 

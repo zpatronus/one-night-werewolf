@@ -107,7 +107,8 @@ def _op_payload(room, player, deadline):
     return {
         "ok": True,
         "phase": "op",
-        "role": game.operation_role(player),
+        "role": player.role,
+        "requires_action": game.operation_role(player) is not None,
         "my_choice": player.choice,
         "submitted": bool(player.choice),
         "submitted_count": submitted,

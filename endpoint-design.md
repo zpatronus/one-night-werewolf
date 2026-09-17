@@ -17,7 +17,7 @@
 | Room | `roomid, phase, owner, board, center, op_start_time, created_at` |
 | Player | `room, userid, userpsw, avatar, role, choice, vote_target` |
 
-`role` 为初始牌；行动阶段仅向需要行动者返回真实操作身份，其他人返回 `role=null`，具体身份等揭晓时显示。
+`role` 为初始牌；行动阶段向所有玩家返回初始身份 `role`，通过 `requires_action` 标记是否需要选择；夜间信息仍在揭晓阶段显示。
 
 `choice={}` 表示未提交或无需行动；保存的真实操作仅包含输入字段，不含窥视结果、最终身份或狼队友。缺失的真实操作在截止时随机补全；无需行动者保持 `{}`。
 
@@ -69,7 +69,7 @@
 | phase | 数据 |
 | --- | --- |
 | waiting | `users:[{userid,avatar}], userCount, host, is_owner, board` |
-| op | `role`（真实可操作身份；无需行动为 `null`）、`my_choice, submitted, submitted_count, total_count, deadline_ms, users` |
+| op | `role`（初始身份）、`requires_action`（是否需要选择）、`my_choice, submitted, submitted_count, total_count, deadline_ms, users` |
 | reveal | `voted`（仅本人是否已投） |
 | result | 无其他数据，结果正文另取 |
 
@@ -87,7 +87,7 @@
 
 请求为凭据。锁内检查房主、等待阶段、3–10 名玩家、总牌数为人数加三；强盗与捣蛋鬼各最多一张。
 
-洗牌后保存各玩家初始牌和中央三张牌。预言家、强盗、捣蛋鬼和玩家中唯一的狼人执行真实操作；其余玩家无需行动，返回 `role=null`，只在前端随意点选。保留公共板子，记录开始时间，进入 `op`。
+洗牌后保存各玩家初始牌和中央三张牌。预言家、强盗、捣蛋鬼和玩家中唯一的狼人执行真实操作；所有玩家都收到初始身份 `role`；其余玩家的 `requires_action=false`，只在前端随意点选。保留公共板子，记录开始时间，进入 `op`。
 
 成功返回当前房间状态。失败为 `not_host / not_waiting / bad_players_count / bad_board`，不产生部分发牌。
 
