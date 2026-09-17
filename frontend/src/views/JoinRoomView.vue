@@ -10,7 +10,7 @@ import AvatarField from './AvatarField.vue'
 
 const router = useRouter()
 const route = useRoute()
-const PHASE_ROUTE = { waiting: '/waitingroom', op: '/ops', reveal: '/reveal', result: '/result' }
+const PHASE_ROUTE = { waiting: '/waitingroom', op: '/ops', reveal: '/discussion', result: '/result' }
 // Identical prefill to CreateRoomView: restore stored creds verbatim; only an
 // absent slot gets a fresh random value, so a returning player is never given
 // a new identity. Values persist only on a successful join (see submit).

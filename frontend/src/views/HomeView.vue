@@ -80,7 +80,7 @@
           </div>
           <div class="shared-rule-box">
             <strong>人人都看屏幕，避免从操作动作猜测身份。</strong>
-            <p>需要行动时按身份选择；无需行动时随意点选。<br>夜间信息与行动结果，<br>等到「揭晓与投票」才显示。</p>
+            <p>需要行动时按身份选择；无需行动时随意点选。<br>夜间信息与行动结果，<br>在「查看夜间信息」时显示。</p>
           </div>
         </li>
         <li class="phase-panel">
@@ -97,11 +97,15 @@
           </div>
         </li>
         <li class="phase-panel">
-          <h2><span class="step-number" aria-hidden="true">03</span>揭晓与投票</h2>
-          <p class="phase-description">查看你的初始身份、夜间信息与操作结果<br>根据这些信息讨论，然后投票</p>
+          <h2><span class="step-number" aria-hidden="true">03</span>查看夜间信息</h2>
+          <p class="phase-description">所有玩家安静查看自己的夜间信息<br>请管理好表情，10 秒后自动进入讨论</p>
         </li>
         <li class="phase-panel">
-          <h2><span class="step-number" aria-hidden="true">04</span>结算</h2>
+          <h2><span class="step-number" aria-hidden="true">04</span>讨论与投票</h2>
+          <p class="phase-description">根据夜间信息讨论，然后投票<br>中途加入此阶段可直接进入</p>
+        </li>
+        <li class="phase-panel">
+          <h2><span class="step-number" aria-hidden="true">05</span>结算</h2>
           <p class="phase-description">公布所有人的身份与胜负</p>
         </li>
       </ol>
@@ -135,7 +139,7 @@
     <div class="container">
       <div class="subtitle">更新日志</div>
       <p>
-        <b>v1.2.0（2026-09-17）：</b>新增「再来一局」与自动加入；建房沿用本地板子；优化房间号生成；夜间统一显示初始身份，移除假身份并提供掩护点选；完善规则与常见问题，新增源码与许可证入口；更新月夜背景与页面样式。
+        <b>v1.2.0（2026-09-17）：</b>新增「再来一局」与自动加入；建房沿用本地板子；优化房间号生成；夜间统一显示初始身份，移除假身份并提供掩护点选；新增 10 秒夜间信息查看页；完善规则与常见问题，新增源码与许可证入口；更新月夜背景与页面样式。
       </p>
       <p>
         <b>v1.1.0（2026-09-16）：</b>新增固定操作截止时间与倒计时；等待室邀请链接；揭晓页展示房间与玩家信息；后台房间管理；简洁优化身份描述。

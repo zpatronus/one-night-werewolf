@@ -1,5 +1,6 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { post } from '../api'
 import { creds } from '../store'
 import { useRoomState } from '../useRoomState'
@@ -8,7 +9,27 @@ import { avatarUrl, getMyAvatar } from '../avatar'
 import { sortPlayers } from '../playerOrder'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
-const { state, poll, applyState } = useRoomState()   // polls + routes to /result when voting ends
+const props = defineProps({ infoOnly: Boolean })
+const router = useRouter()
+const { state, poll, applyState } = useRoomState(null, props.infoOnly ? { reveal: '/showinfo' } : undefined)
+const remaining = ref(10)
+let infoTimer = null
+let active = true
+function startInfoCountdown() {
+  if (!props.infoOnly || infoTimer !== null || !active) return
+  const deadline = Date.now() + 10000
+  function tick() {
+    infoTimer = null
+    remaining.value = Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
+    if (remaining.value === 0) router.replace('/discussion')
+    else infoTimer = setTimeout(tick, 100)
+  }
+  infoTimer = setTimeout(tick, 100)
+}
+onUnmounted(() => {
+  active = false
+  if (infoTimer !== null) clearTimeout(infoTimer)
+})
 const me = ref(null)               // one-shot POST /reveal body
 const err = ref('')
 const busy = ref(false)
@@ -29,7 +50,9 @@ async function loadReveal() {
     }
     const res = await post('reveal', creds())
     if (!res.ok) { err.value = errorText(res.error); return }
+    if (!active) return
     me.value = res
+    startInfoCountdown()
   } finally { loading.value = false }
 }
 onMounted(loadReveal)
@@ -60,7 +83,7 @@ function pick(u) {
 function abstain() { pick('') }
 
 function openConfirm() {
-  if (voted.value || busy.value) return
+  if (props.infoOnly || voted.value || busy.value) return
   confirmOpen.value = true
 }
 function confirmVote() {
@@ -110,7 +133,7 @@ function describe() {
 }
 
 async function vote() {
-  if (voted.value || busy.value) return
+  if (props.infoOnly || voted.value || busy.value) return
   busy.value = true
   err.value = ''
   const res = await post('vote', { ...creds(), target: target.value })
@@ -125,10 +148,15 @@ async function vote() {
 
 <template>
   <div v-if="me">
-    <h1 class="subtitle surface-panel">讨论与投票</h1>
+    <div v-if="props.infoOnly" class="container">
+      <h1 class="subtitle">查看夜间信息</h1>
+      <p>请管理好表情，保持安静。</p>
+      <p class="status">{{ remaining }} 秒后开始讨论</p>
+    </div>
+    <h1 v-else class="subtitle surface-panel">讨论与投票</h1>
 
     <!-- One-time context (from /reveal, not the poll): who I am + room + template. -->
-    <div class="container room-info">
+    <div v-if="!props.infoOnly" class="container room-info">
       <div class="me-card">
         <img class="me-avatar" :src="meCard.avatar" :alt="meCard.userid" />
         <span class="me-name">{{ meCard.userid }}</span>
@@ -151,7 +179,7 @@ async function vote() {
     </div>
 
     <div class="container role-banner">
-      <button type="button" class="toggle-role" @click="showRole = !showRole">
+      <button v-if="!props.infoOnly" type="button" class="toggle-role" @click="showRole = !showRole">
         {{ showRole ? '👁 隐藏身份' : '🔒 身份已隐藏' }}
       </button>
       <template v-if="showRole">
@@ -168,7 +196,7 @@ async function vote() {
       </p>
     </div>
 
-    <div class="container">
+    <div v-if="!props.infoOnly" class="container">
       <div class="subtitle">投出处决对象</div>
       <p class="muted" style="font-size:13px">选择一位玩家投出去，或弃权。每人只能投一次。</p>
 

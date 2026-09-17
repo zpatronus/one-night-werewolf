@@ -1,5 +1,7 @@
 # If you're an AI agent, read the view-design.md and endpoint-design.md instead
 
+> 页面流程更新：正常夜间结束走 `/ops` → `/showinfo` → `/discussion`。`ShowInfoView` 仅允许从 `/ops` 进入，加载本人夜间信息成功后倒计时 10 秒，提示管理表情、保持安静，不显示投票控件；结束后自动进入 `DiscussionView`（讨论与投票）。直接加入或刷新时，服务端 `reveal` 阶段直接进入 `/discussion`；旧 `/reveal` 路由重定向至此。`/showinfo` 只是前端过渡页，不新增后端阶段，信息仍由 `/api/reveal/` 提供。下文旧流程若不一致，以此为准。
+
 > 当前数据结构、请求字段与并发约束以 [endpoint-design.md](endpoint-design.md) 为准；使用本项目自定义胜负规则。
 >
 > 最新约定：新房间固定 9 张初始模板（狼人 2、村民 2、其他角色各 1）；加入最多 10 人。板子增减只编辑草稿，显式提交后才更新公共板子，不读本地板子缓存。所有玩家在夜间收到初始身份 `role`，无需行动者（包括多人狼）收到 `requires_action=false`，前端明确提示无需操作并提供本地点选按钮，不提交、不保存；仅独狼执行真实窥视。下文旧版示例若不一致，以本约定和端点文档为准。
@@ -66,10 +68,10 @@
 | `/joinroom`    | `JoinRoomView`    | 房间ID + 用户名 + 密码 + 头像（加入/登录已有玩家）                  | 与阿瓦隆 `JoinRoomView.vue` 一模一样    |
 | `/waitingroom` | `WaitingRoomView` | 房间玩家列表；**房主可配置板子并开始**；非房主只读并等待            | 阿瓦隆 `WaitingRoomView.vue` + 板子配置 |
 | `/ops`         | `OperationView`   | **阶段一**：15s 操作（所有人低头操作）                              | 新增（对局三视图之一）                  |
-| `/reveal`      | `RevealView`      | **阶段二**：一次性揭晓真实身份与操作结果 + 提供投票控件（一人一票） | 新增                                    |
+| `/discussion`      | `DiscussionView`      | **阶段二**：一次性揭晓真实身份与操作结果 + 提供投票控件（一人一票） | 新增                                    |
 | `/result`      | `ResultView`      | **阶段三**：全员投完后的结果揭示                                    | 新增                                    |
 
-> 对局的三阶段坚持写成 **3 个独立 View**（`/ops`、`/reveal`、`/result`），由服务端 `room_state` 的 `phase` 字段驱动进入哪个 View；前端每 2s 轮询 `room_state` 自动跳转，与阿瓦隆 waiting→inroom 的跳转方式完全一致。投票动作发生在阶段二（`/reveal`）界面内。
+> 对局的三阶段坚持写成 **3 个独立 View**（`/ops`、`/discussion`、`/result`），由服务端 `room_state` 的 `phase` 字段驱动进入哪个 View；前端每 2s 轮询 `room_state` 自动跳转，与阿瓦隆 waiting→inroom 的跳转方式完全一致。投票动作发生在阶段二（`/discussion`）界面内。
 
 ---
 
@@ -279,15 +281,15 @@
   - 你的真实身份**有真实夜间行动**（独狼可选看中央牌 / 预言家 / 强盗 / 捣蛋鬼）→ 分配**该身份的操作界面**，你会看到自己就是这个身份，并做出**真实选择**：真捣蛋鬼在阶段一就看到“你是捣蛋鬼，请选两张”。
   - 无需选择（有狼同伴的狼人 / 爪牙 / 失眠者 / 村民）→ 服务端返回初始身份 `role` 和 `requires_action=false`；前端显示身份与无需操作提示，并提供本地点选按钮，不提交选择；夜间信息在揭晓阶段显示。
   - 服务端只收集真实行动；掩护点选不发送请求，不影响结算。
-- **⚠️ 阶段一不显示任何“结果”**：你窥视到的牌、换到的牌、对方的身份，**在阶段一一律不展示**，只做选择；这些牌面/结果只在阶段二 `/reveal` 出现。
+- **⚠️ 阶段一不显示任何“结果”**：你窥视到的牌、换到的牌、对方的身份，**在阶段一一律不展示**，只做选择；这些牌面/结果只在阶段二 `/discussion` 出现。
 - **操作控件**：
   - 独狼/预言家：点中央 3 张牌中的 1 张 / 2 张（预言家选“看某人”或“看两张中央”）。
   - 强盗/捣蛋鬼：点选玩家牌 → 选中 → 确认。
   - 无需行动玩家：随意切换掩护选项，无需确认或提交。
 - **交互**：选中高亮 → 确认提交 `POST /api/night_action/`；可改选直到提交。倒计时结束强制提交。
-- 轮询 `/api/room_state/`（`phase='op'` payload 含 `deadline_ms` 与 `submitted_count/total_count`）拿倒计时与已提交人数；一旦 `phase` 变 `reveal` 就按 §0.1 统一逻辑跳 `/reveal`（真正的信息与身份展示）。
+- 轮询 `/api/room_state/`（`phase='op'` payload 含 `deadline_ms` 与 `submitted_count/total_count`）拿倒计时与已提交人数；一旦 `phase` 变 `reveal` 就按 §0.1 统一逻辑跳 `/discussion`（真正的信息与身份展示）。
 
-### 7.2 RevealView —— 阶段二（揭晓 + 投票）
+### 7.2 DiscussionView —— 阶段二（揭晓 + 投票）
 
 **页面职责：进入阶段二即刻拉取一次真实的结算结果，并提供一个投票控件；可随时投、每人只投一次；阶段二轮询等待全员投完。**
 

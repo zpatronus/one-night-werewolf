@@ -1,5 +1,7 @@
 # 一夜狼人 — View 逻辑流设计（逐页面）
 
+> 页面流程更新：正常夜间结束走 `/ops` → `/showinfo` → `/discussion`。`ShowInfoView` 仅允许从 `/ops` 进入，加载本人夜间信息成功后倒计时 10 秒，提示管理表情、保持安静，不显示投票控件；结束后自动进入 `DiscussionView`（讨论与投票）。直接加入或刷新时，服务端 `reveal` 阶段直接进入 `/discussion`；旧 `/reveal` 路由重定向至此。`/showinfo` 只是前端过渡页，不新增后端阶段，信息仍由 `/api/reveal/` 提供。下文旧流程若不一致，以此为准。
+
 > 当前数据结构、请求字段与并发约束以 [endpoint-design.md](endpoint-design.md) 为准；使用本项目自定义胜负规则。
 
 
@@ -23,7 +25,7 @@
 |---|---|---|
 | `waiting` | `WaitingRoomView` | `users, userCount, avatars, host, is_owner, board` |
 | `op` | `OperationView` | `role, my_choice, submitted, submitted_count, total_count, deadline_ms` |
-| `reveal` | `RevealView` | `voted`（**仅投票进度**，不含揭晓内容——揭晓由一次性 `/api/reveal/` 给） |
+| `reveal` | `DiscussionView` | `voted`（**仅投票进度**，不含揭晓内容——揭晓由一次性 `/api/reveal/` 给） |
 | `result` | `ResultView` | 空（结果由一次性 `/api/result/` 给） |
 
 **统一调度逻辑**（每个 View 的间歇轮询都套同一段）：
@@ -31,7 +33,7 @@
 2. `phase` 与当前 View **不符** → `$router.push(phase → View 路由)`（刷新/断线也靠它自动归位）。
 3. `phase` 与当前 View **相符** → 用该 phase 的 payload 渲染/更新本页（**不跳转**）。
 
-> 例：`/ops` 页面轮询 `/api/room_state/`——`phase=op` 时用它渲染操作界面（`role`/`my_choice`/`deadline_ms`）；一旦 `phase` 变 `reveal` 就跳 `/reveal`。`/reveal` 同理：`phase=reveal` 渲染投票进度；变为 `result` 跳 `/result`。
+> 例：`/ops` 页面轮询 `/api/room_state/`——`phase=op` 时用它渲染操作界面（`role`/`my_choice`/`deadline_ms`）；一旦 `phase` 变 `reveal` 就跳 `/discussion`。`/discussion` 同理：`phase=reveal` 渲染投票进度；变为 `result` 跳 `/result`。
 
 ---
 
@@ -91,7 +93,7 @@ Home ──nav──▶ CreateRoom ──▶ JoinRoom ──▶ WaitingRoom ─�
   `POST /api/join_room/ {roomid, userid, userpsw, avatar}`：
   - 玩家不存在 → 创建新玩家（`created=true`）；存在且密码对 → 登录（`created=false`）；密码错 → `wrong_password`。
   - 回传权威 `avatar` → `setMyAvatar(avatar)`。
-  - 成功后**直接跳 `/waitingroom`**：无需再查房间状态——房间若已被开始，WaitingRoom 的 `room_state` 轮询（§0.1 统一逻辑）会立刻发现 `phase != waiting` 并把本玩家归位到对应对局 View（`/ops` 或 `/reveal`）。
+  - 成功后**直接跳 `/waitingroom`**：无需再查房间状态——房间若已被开始，WaitingRoom 的 `room_state` 轮询（§0.1 统一逻辑）会立刻发现 `phase != waiting` 并把本玩家归位到对应对局 View（`/ops` 或 `/discussion`）。
 - **跳转**：`/joinroom ──▶ /waitingroom`（已开局时由统一轮询自动再跳对局 View）。
 
 ---
@@ -123,14 +125,14 @@ Home ──nav──▶ CreateRoom ──▶ JoinRoom ──▶ WaitingRoom ─�
 
 ---
 
-## 5. 对局三 View（`/ops`、`/reveal`、`/result`）
+## 5. 对局三 View（`/ops`、`/discussion`、`/result`）
 
 **对局轮询（三 View 与 waiting 共用同一个 `/api/room_state/`，套 §0.1 统一逻辑）**：`setInterval(2s) → POST /api/room_state/ {roomid,userid,userpsw}`。`mounted` 也先调一次。每次响应：
 - 读 `phase`（`op|reveal|result`）。
 - `phase` 与当前 View 不符 → `$router.push` 到 phase→View 对应路由。
 - `phase` 与当前 View 相符 → 用该 phase 的 payload 渲染本页。
 
-> 对局阶段 `phase` 同样来自同一个字段：`op`→`/ops`，`reveal`→`/reveal`，`result`（= 全员投完）→`/result`。任何刷新/断线都能靠它自动归位。
+> 对局阶段 `phase` 同样来自同一个字段：`op`→`/ops`，`reveal`→`/discussion`，`result`（= 全员投完）→`/result`。任何刷新/断线都能靠它自动归位。
 
 ---
 
@@ -152,7 +154,7 @@ Home ──nav──▶ CreateRoom ──▶ JoinRoom ──▶ WaitingRoom ─�
   ```
   - 用 `my_choice` 回显当前生效选择（丢包/重放也能恢复）。
   - 用 `submitted_count/total_count` 显示进度；`deadline_ms` 同步倒计时（本地计时为主，服务端兜底）。
-  - **统一跳转判定（§0.1）**：`phase != 'op'`（变成 `reveal`）→ 按 phase 路由跳 `/reveal`。`phase=='op'` → 用 `my_choice` 等渲染本页（`/ops` 页的两态：匹配→渲染操作 UI，不符→跳走）。
+  - **统一跳转判定（§0.1）**：`phase != 'op'`（变成 `reveal`）→ 按 phase 路由跳 `/discussion`。`phase=='op'` → 用 `my_choice` 等渲染本页（`/ops` 页的两态：匹配→渲染操作 UI，不符→跳走）。
 - **交互动作**：
   - 真实行动确认提交 → `POST /api/night_action/ {choice}`；可多次改选，后者覆盖（best effort）。
   - 倒计时归零后（即使全员提前提交也等满）：服务端切换 `phase=reveal`（对需要行动但未提交者随机默认操作）。
@@ -161,7 +163,7 @@ Home ──nav──▶ CreateRoom ──▶ JoinRoom ──▶ WaitingRoom ─�
 
 ---
 
-### 5.2 RevealView（`/reveal`）—— 阶段二（揭晓 + 投票）
+### 5.2 DiscussionView（`/discussion`）—— 阶段二（揭晓 + 投票）
 
 **职责**：一次性拿到自己的揭晓结果，并在同一界面投出处决对象（一人一票）；轮询等全员投完。
 
@@ -209,8 +211,8 @@ Home ──nav──▶ CreateRoom ──▶ JoinRoom ──▶ WaitingRoom ─�
 | phase | 常驻 View | 轮询端点 | payload（相符时渲染） | phase 不符时的跳转 |
 |---|---|---|---|---|
 | `waiting` | WaitingRoom | `/api/room_state/` | `users, userCount, avatars, host, is_owner, board` | → 对应对局 View |
-| `op` | OperationView | `/api/room_state/` | `role, my_choice, submitted, submitted_count, total_count, deadline_ms` | `≠op` → `/reveal` |
-| `reveal` | RevealView | `/api/room_state/` | `voted` | `=result` → `/result` |
+| `op` | OperationView | `/api/room_state/` | `role, my_choice, submitted, submitted_count, total_count, deadline_ms` | `≠op` → `/discussion` |
+| `reveal` | DiscussionView | `/api/room_state/` | `voted` | `=result` → `/result` |
 | `result` | ResultView | 无（进入前已在上一 View 等到全员投完） | — | 手动 |
 
 （Home / CreateRoom / JoinRoom 无 phase 轮询，靠 POST 成功后手动一跳。一次性取数：`/api/reveal/` 阶段二进入时、`/api/result/` 结果界面进入时各拉一次，不走轮询。）

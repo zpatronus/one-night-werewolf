@@ -8,7 +8,7 @@ import { avatarUrl } from '../avatar'
 import { sortPlayers } from '../playerOrder'
 
 
-const { state, error: pollError, applyState } = useRoomState()
+const { state, error: pollError, applyState } = useRoomState(null, { reveal: '/showinfo' })
 const sel = reactive({ a: '', b: '', center: -1, picks: [] })  // a/b: players; center: lone-wolf; picks: seer center (1-2, ordered)
 const mode = ref('player')  // seer toggle: 'player' | 'center'
 const coverPick = ref(null)
@@ -198,7 +198,7 @@ async function submit() {
   if (!res.ok) { err.value = errorText(res.error); return }
   confirmed.value = true
   // The response is the live room status: render it now (the "我的操作" panel
-  // flips to the submitted op instantly) and route straight to /reveal when
+  // flips to the submitted op instantly) and route to /showinfo when
   // the server has reached the deadline.
   applyState(res)
 }

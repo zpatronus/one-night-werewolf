@@ -41,7 +41,7 @@ function load(file, overrides = {}) {
     assert.ok(modules[name], `unexpected import ${name}`)
     return modules[name]
   }, module, module.exports)
-  const instance = file.endsWith('.vue') ? module.exports.default.setup({}, { expose() {} }) : module.exports
+  const instance = file.endsWith('.vue') ? module.exports.default.setup(overrides.props || {}, { expose() {} }) : module.exports
   return { instance, state, mounted, unmounted, applied, watchers }
 }
 
@@ -108,7 +108,7 @@ test('night action can retry after failure; seer needs exactly two centers', asy
 
 test('vote retries after failure and excludes self', async () => {
   let calls = 0
-  const { instance: c } = load('views/RevealView.vue', {
+  const { instance: c } = load('views/DiscussionView.vue', {
     '../api': { post: async () => ++calls === 1 ? { ok: false, error: 'network_error' } : { ok: true, phase: 'reveal', voted: true } },
   })
   c.me.value = { users: [{ userid: 'A' }, { userid: 'B' }] }
@@ -118,7 +118,7 @@ test('vote retries after failure and excludes self', async () => {
 })
 
 test('reveal and result loaders recover after a failed fetch', async () => {
-  for (const [file, method] of [['RevealView', 'loadReveal'], ['ResultView', 'loadResult']]) {
+  for (const [file, method] of [['DiscussionView', 'loadReveal'], ['ResultView', 'loadResult']]) {
     let calls = 0
     const { instance: c } = load(`views/${file}.vue`, { '../api': { post: async () => ++calls === 1 ? { ok: false, error: 'network_error' } : { ok: true } } })
     await c[method](); assert.equal(c.err.value, 'network_error')
@@ -381,4 +381,88 @@ test('unreadable local templates safely fall back to the server default', () => 
     globalThis.localStorage = { getItem() { throw new Error('unavailable') } }
     assert.equal(localBoardForCreation(), null)
   } finally { globalThis.localStorage = previous }
+})
+
+
+test('ops transition uses the information page while normal reveal routing stays direct', () => {
+  for (const [path, routes, expected] of [
+    ['/ops', { reveal: '/showinfo' }, ['/showinfo']],
+    ['/showinfo', { reveal: '/showinfo' }, []],
+    ['/joinroom', undefined, ['/discussion']],
+    ['/discussion', undefined, []],
+  ]) {
+    const pushed = []
+    const { instance } = load('useRoomState.js', {
+      './api': { post: async () => ({ ok: true }) },
+      './store': { creds: () => ({ roomid: 'R' }) },
+      'vue-router': { useRouter: () => ({ currentRoute: ref({ path }), push: p => pushed.push(p) }) },
+    })
+    instance.useRoomState(null, routes).applyState({ ok: true, phase: 'reveal' })
+    assert.deepEqual(pushed, expected)
+  }
+})
+
+test('information route can only be entered from ops', () => {
+  const { instance } = load('router/index.js', {
+    '../store': { base: '/' },
+    'vue-router': { createWebHistory: () => ({}), createRouter: config => config },
+  })
+  const route = instance.default.routes.find(r => r.path === '/showinfo')
+  assert.equal(route.beforeEnter({}, { path: '/ops' }), true)
+  for (const path of ['', '/joinroom', '/discussion', '/result']) {
+    assert.equal(route.beforeEnter({}, { path }), '/discussion')
+  }
+})
+
+test('information countdown starts after successful loading, blocks votes and exits after ten seconds', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1000 })
+  const routes = [], calls = []
+  let failed = true
+  const { instance: c } = load('views/DiscussionView.vue', {
+    props: { infoOnly: true },
+    'vue-router': { useRouter: () => ({ replace: path => routes.push(path) }) },
+    '../api': { post: async path => {
+      calls.push(path)
+      return failed ? { ok: false, error: 'network_error' } : { ok: true, role: 'villager', info: {} }
+    } },
+  })
+  await c.loadReveal()
+  t.mock.timers.tick(15000)
+  assert.deepEqual(routes, [])
+  failed = false
+  await c.loadReveal()
+  assert.equal(c.remaining.value, 10)
+  await c.vote()
+  c.openConfirm()
+  assert.equal(c.confirmOpen.value, false)
+  assert.deepEqual(calls, ['reveal', 'reveal'])
+  t.mock.timers.tick(9000)
+  assert.equal(c.remaining.value, 1)
+  assert.deepEqual(routes, [])
+  t.mock.timers.tick(1000)
+  assert.equal(c.remaining.value, 0)
+  assert.deepEqual(routes, ['/discussion'])
+  t.mock.timers.tick(10000)
+  assert.deepEqual(routes, ['/discussion'])
+})
+
+test('leaving the information page cancels countdown and ignores late information', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+  for (const late of [false, true]) {
+    const routes = []
+    let resolve
+    const { instance: c, unmounted } = load('views/DiscussionView.vue', {
+      props: { infoOnly: true },
+      'vue-router': { useRouter: () => ({ replace: path => routes.push(path) }) },
+      '../api': { post: () => late ? new Promise(r => { resolve = r }) : Promise.resolve({ ok: true, role: 'villager' }) },
+    })
+    const pending = c.loadReveal()
+    await Promise.resolve()
+    if (!late) await pending
+    unmounted.forEach(f => f())
+    if (late) { resolve({ ok: true, role: 'villager' }); await pending }
+    t.mock.timers.tick(11000)
+    assert.deepEqual(routes, [])
+    if (late) assert.equal(c.me.value, null)
+  }
 })

@@ -71,7 +71,7 @@ export const verdictText = (code) => VERDICT[code] || code
 export const PHASE_TEXT = {
   waiting: '等待开始',
   op: '行动阶段',
-  reveal: '揭晓与投票',
+  reveal: '讨论与投票',
   result: '结算',
 }
 

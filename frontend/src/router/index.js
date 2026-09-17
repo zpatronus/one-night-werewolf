@@ -7,7 +7,10 @@ const routes = [
   { path: '/joinroom', name: 'join', component: () => import('../views/JoinRoomView.vue') },
   { path: '/waitingroom', name: 'waiting', component: () => import('../views/WaitingRoomView.vue') },
   { path: '/ops', name: 'ops', component: () => import('../views/OperationView.vue') },
-  { path: '/reveal', name: 'reveal', component: () => import('../views/RevealView.vue') },
+  { path: '/showinfo', name: 'showinfo', component: () => import('../views/ShowInfoView.vue'),
+    beforeEnter: (_to, from) => from.path === '/ops' ? true : '/discussion' },
+  { path: '/discussion', name: 'discussion', component: () => import('../views/DiscussionView.vue') },
+  { path: '/reveal', redirect: '/discussion' },
   { path: '/result', name: 'result', component: () => import('../views/ResultView.vue') },
 ]
 

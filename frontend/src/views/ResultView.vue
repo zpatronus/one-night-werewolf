@@ -15,7 +15,7 @@ const nextId = nextRoomId(creds().roomid)
 const nextBusy = ref(false)
 const autoJoin = ref(false)
 const nextMessage = ref('')
-const phaseRoute = { waiting: '/waitingroom', op: '/ops', reveal: '/reveal', result: '/result' }
+const phaseRoute = { waiting: '/waitingroom', op: '/ops', reveal: '/discussion', result: '/result' }
 let nextTimer = null
 let nextRevision = 0
 
