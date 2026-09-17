@@ -4,6 +4,9 @@ import { readFileSync } from 'node:fs'
 import { compileScript, parse } from '@vue/compiler-sfc'
 import { transformSync } from 'esbuild'
 import { ref, computed, reactive, watch, nextTick } from 'vue'
+import { localBoardForCreation } from '../src/gameConfig.js'
+import * as random from '../src/random.js'
+import { nextRoomId } from '../src/random.js'
 import { calculateResult } from '../src/result.js'
 
 // Execute the actual component setup with mocked HTTP/lifecycle boundaries.
@@ -18,11 +21,13 @@ function load(file, overrides = {}) {
   const modules = {
     vue: { ref, computed, reactive, watch: (source, callback, options) => { watchers.push(callback); return watch(source, callback, options) }, onMounted: f => mounted.push(f), onUnmounted: f => unmounted.push(f) },
     'vue-router': { useRouter: () => ({ push() {}, currentRoute: ref({ path: '/ops' }) }) },
+    '../random': random,
+    './AvatarField.vue': {},
     '../result': { calculateResult },
     '../api': { post: async () => ({ ok: true }) },
     '../store': { creds: () => ({ roomid: 'R', userid: 'A' }) },
     '../useRoomState': { useRoomState: () => ({ state, error: ref(null), poll: async () => ({ ok: true, phase: 'reveal' }), applyState: s => { state.value = s; applied.push(s) } }) },
-    '../gameConfig': { roleName: x => x, roleIcon: () => '', errorText: x => x, sortPlayers: (_, x) => x, ROLE_ORDER: ['werewolf','seer','robber','troublemaker','villager'], boardTemplate: () => ({ villager: 6 }) },
+    '../gameConfig': { roleName: x => x, roleIcon: () => '', errorText: x => x, localBoardForCreation, sortPlayers: (_, x) => x, ROLE_ORDER: ['werewolf','seer','robber','troublemaker','villager'], boardTemplate: () => ({ villager: 6 }) },
     '../components/ConfirmDialog.vue': {},
     '../avatar': { avatarUrl() {}, getMyAvatar() {} },
     '../playerOrder': { sortPlayers: (_, x) => x },
@@ -240,4 +245,114 @@ test('pack wolf decoy swaps never affect final roles or replay', () => {
   ] })
   assert.deepEqual(result.players.map(p => p.final_role), ['werewolf','werewolf','villager'])
   assert.deepEqual(result.ops.map(op => op.type), ['wolf'])
+})
+
+
+test('base 62 room successor carries, preserves width and wraps deterministically', () => {
+  for (const [before, after] of [['a','b'], ['z','A'], ['Z','0'], ['8','9'],
+    ['9','ba'], ['a9','ba'], ['009','01a'], ['99999','baaaaa'],
+    ['999999','aaaaaa'], ['abcDEF','abcDEG'], ['', 'a'], ['bad!', 'a']]) {
+    assert.equal(nextRoomId(before), after)
+  }
+})
+
+function nextRoomHarness(post) {
+  const routes = [], auth = []
+  const component = load('views/ResultView.vue', {
+    '../api': { post },
+    '../store': { creds: () => ({ roomid: 'z', userid: 'A', userpsw: '1234' }), setAuth: value => auth.push(value) },
+    'vue-router': { useRouter: () => ({ push: path => routes.push(path) }) },
+  })
+  return { ...component, routes, auth }
+}
+
+test('creating an existing next room joins it with the same credentials', async () => {
+  const calls = []
+  const { instance: c, routes, auth } = nextRoomHarness(async (path, body) => {
+    calls.push([path, body])
+    return path === 'create_room' ? { ok: false, error: 'roomid_taken' } : { ok: true, phase: 'waiting', avatar: 'moon' }
+  })
+  await c.enterNext(true)
+  assert.deepEqual(calls.map(x => x[0]), ['create_room', 'join_room'])
+  assert.equal(calls[1][1].roomid, 'A')
+  assert.equal(calls[1][1].userpsw, '1234')
+  assert.deepEqual(routes, ['/waitingroom'])
+  assert.equal(auth[0].avatar, 'moon')
+})
+
+test('auto join retries missing rooms and cancellation ignores in-flight success', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  let calls = 0, resolve
+  const { instance: c, routes, auth } = nextRoomHarness(async () => {
+    calls++
+    if (calls === 1) return { ok: false, error: 'room_not_found' }
+    return new Promise(r => { resolve = r })
+  })
+  await c.enterNext()
+  assert.equal(c.autoJoin.value, true)
+  assert.match(c.nextMessage.value, /等待房主/)
+  t.mock.timers.tick(2000)
+  assert.equal(calls, 2)
+  c.cancelAutoJoin()
+  resolve({ ok: true, phase: 'waiting' })
+  await Promise.resolve(); await Promise.resolve()
+  assert.equal(c.autoJoin.value, false)
+  assert.deepEqual(routes, [])
+  assert.deepEqual(auth, [])
+  t.mock.timers.tick(10000)
+  assert.equal(calls, 2)
+})
+
+test('auto join succeeds after creation and stops on permanent errors or unmount', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  for (const outcome of [{ ok: true, phase: 'waiting' }, { ok: false, error: 'room_full' }, { ok: false, error: 'wrong_password' }, { ok: false, error: 'room_started' }]) {
+    let calls = 0
+    const { instance: c, routes, unmounted } = nextRoomHarness(async () => ++calls === 1 ? { ok: false, error: 'room_not_found' } : outcome)
+    await c.enterNext()
+    t.mock.timers.tick(2000)
+    await Promise.resolve(); await Promise.resolve()
+    assert.equal(c.autoJoin.value, false)
+    assert.deepEqual(routes, outcome.ok ? ['/waitingroom'] : [])
+    if (!outcome.ok) assert.equal(c.nextMessage.value, outcome.error)
+    unmounted.forEach(f => f())
+    t.mock.timers.tick(10000)
+    assert.equal(calls, 2)
+  }
+  let calls = 0
+  const { instance: c, unmounted } = nextRoomHarness(async () => { calls++; return { ok: false, error: 'room_not_found' } })
+  await c.enterNext()
+  unmounted.forEach(f => f())
+  t.mock.timers.tick(10000)
+  assert.equal(calls, 1)
+})
+
+
+test('both create entry points send the saved template in the creation request', async () => {
+  const board = { werewolf: 1, seer: 1, villager: 4 }
+  localStorage.setItem('waitingBoard', JSON.stringify(board))
+  localStorage.setItem('roomId', 'New')
+  localStorage.setItem('userId', 'A')
+  localStorage.setItem('userPsw', '1234')
+  for (const file of ['CreateRoomView', 'ResultView']) {
+    const calls = []
+    const { instance: c } = load(`views/${file}.vue`, {
+      '../api': { post: async (path, body) => { calls.push([path, body]); return { ok: true } } },
+      '../store': { creds: () => ({ roomid: 'Old', userid: 'A', userpsw: '1234' }), setAuth() {} },
+    })
+    if (file === 'CreateRoomView') await c.submit()
+    else await c.enterNext(true)
+    assert.equal(calls.length, 1)
+    assert.equal(calls[0][0], 'create_room')
+    assert.deepEqual(calls[0][1].board, board)
+  }
+})
+
+test('unreadable local templates safely fall back to the server default', () => {
+  localStorage.setItem('waitingBoard', '{broken')
+  assert.equal(localBoardForCreation(), null)
+  const previous = globalThis.localStorage
+  try {
+    globalThis.localStorage = { getItem() { throw new Error('unavailable') } }
+    assert.equal(localBoardForCreation(), null)
+  } finally { globalThis.localStorage = previous }
 })

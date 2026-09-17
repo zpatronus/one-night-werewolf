@@ -3,9 +3,9 @@ import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { post } from '../api'
 import { setAuth } from '../store'
-import { errorText } from '../gameConfig'
+import { errorText, localBoardForCreation } from '../gameConfig'
 import { getMyAvatar } from '../avatar'
-import { prefillIdentity, prefillRoomId, nextRoomId, randomPsw } from '../random'
+import { prefillIdentity, prefillRoomId, nextRoomId, randomRoomId, randomPsw } from '../random'
 import AvatarField from './AvatarField.vue'
 
 const router = useRouter()
@@ -49,6 +49,7 @@ async function submit() {
   err.value = ''
   const res = await post('create_room', {
     roomid: roomid.value, userid: userid.value, userpsw: userpsw.value, avatar: avatar.value,
+    board: localBoardForCreation(),
   })
   busy.value = false
   if (!res.ok) { err.value = errorText(res.error); return }
@@ -62,6 +63,7 @@ async function submit() {
     <div class="subtitle">房间ID</div>
     <div class="field-row">
       <input v-model.trim="roomid" maxlength="6" placeholder="房间ID" />
+      <button type="button" @click="roomid = randomRoomId()">随机</button>
       <button type="button" @click="nextId">下一个</button>
     </div>
     <div class="subtitle">玩家ID</div>

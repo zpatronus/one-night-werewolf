@@ -5,7 +5,7 @@ import { post } from '../api'
 import { setAuth } from '../store'
 import { errorText } from '../gameConfig'
 import { getMyAvatar } from '../avatar'
-import { prefillIdentity, prefillRoomId, nextRoomId, randomPsw } from '../random'
+import { prefillIdentity, prefillRoomId, nextRoomId, randomRoomId, randomPsw } from '../random'
 import AvatarField from './AvatarField.vue'
 
 const router = useRouter()
@@ -69,6 +69,7 @@ async function submit() {
     <div class="subtitle">房间ID</div>
     <div class="field-row">
       <input v-model.trim="roomid" maxlength="6" placeholder="房间ID" />
+      <button type="button" @click="roomid = randomRoomId()">随机</button>
       <button type="button" @click="roomid = nextRoomId(roomid)">下一个</button>
     </div>
     <div class="subtitle">玩家ID</div>

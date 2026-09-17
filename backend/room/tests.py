@@ -260,3 +260,30 @@ class GameChecks(TestCase):
         self.assertEqual(game.fake_pool({'werewolf':5,'robber':1,'minion':1}), ['robber','werewolf'])
         self.assertEqual(game.fake_pool({'seer':1,'villager':5}), ['seer'])
         self.assertEqual(game.fake_pool({'villager':6}), game.FAKE_POOL)
+
+
+    def test_create_room_uses_valid_owner_template(self):
+        board = {'werewolf': 1, 'seer': 1, 'villager': 4}
+        response = self.call(views.create_room, roomid='Local', board=board)
+        self.assertTrue(response['ok'])
+        room = Room.objects.get(roomid='Local')
+        self.assertEqual(room.board, board)
+        self.assertEqual(room.owner.userid, 'A')
+        self.assertEqual(room.players.count(), 1)
+
+    def test_create_room_invalid_templates_fall_back_without_failing(self):
+        for i, board in enumerate([None, [], 'broken', {}, {'villager': True},
+                {'unknown': 6}, {'villager': -1}, {'villager': 6.5},
+                {'villager': 5}, {'villager': 14}, {'robber': 2, 'villager': 4}]):
+            with self.subTest(board=board):
+                roomid = f'Bad{i}'
+                response = self.call(views.create_room, roomid=roomid, board=board)
+                self.assertTrue(response['ok'])
+                self.assertEqual(Room.objects.get(roomid=roomid).board, game.board_template())
+
+    def test_create_existing_room_does_not_replace_template(self):
+        original = self.room.board
+        response = self.call(views.create_room, board={'villager': 6})
+        self.assertEqual(response['error'], 'roomid_taken')
+        self.room.refresh_from_db()
+        self.assertEqual(self.room.board, original)

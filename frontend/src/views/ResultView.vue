@@ -1,11 +1,65 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { post } from '../api'
 import { calculateResult } from '../result'
-import { creds } from '../store'
-import { roleName, roleIcon, errorText, ROLE_DISPLAY } from '../gameConfig'
+import { useRouter } from 'vue-router'
+import { nextRoomId } from '../random'
+import { getMyAvatar } from '../avatar'
+import { creds, setAuth } from '../store'
+import { roleName, roleIcon, errorText, localBoardForCreation, ROLE_DISPLAY } from '../gameConfig'
 import { avatarUrl } from '../avatar'
 import { sortPlayers } from '../playerOrder'
+
+const router = useRouter()
+const nextId = nextRoomId(creds().roomid)
+const nextBusy = ref(false)
+const autoJoin = ref(false)
+const nextMessage = ref('')
+const phaseRoute = { waiting: '/waitingroom', op: '/ops', reveal: '/reveal', result: '/result' }
+let nextTimer = null
+let nextRevision = 0
+
+function cancelAutoJoin() {
+  nextRevision++
+  clearTimeout(nextTimer)
+  autoJoin.value = false
+  nextBusy.value = false
+  nextMessage.value = ''
+}
+onUnmounted(cancelAutoJoin)
+
+async function enterNext(create = false) {
+  if (nextBusy.value || autoJoin.value) return
+  const revision = ++nextRevision
+  const identity = { ...creds(), roomid: nextId, avatar: getMyAvatar() }
+  nextBusy.value = true
+  nextMessage.value = ''
+  async function attempt() {
+    let res = await post(create ? 'create_room' : 'join_room',
+      create ? { ...identity, board: localBoardForCreation() } : identity)
+    if (revision !== nextRevision) return
+    if (create && !res.ok && res.error === 'roomid_taken') {
+      res = await post('join_room', identity)
+      if (revision !== nextRevision) return
+    }
+    nextBusy.value = false
+    if (res.ok) {
+      autoJoin.value = false
+      setAuth({ ...identity, avatar: res.avatar })
+      router.push(phaseRoute[res.phase] || '/waitingroom')
+    } else if (!create && ['room_not_found', 'network_error'].includes(res.error)) {
+      autoJoin.value = true
+      nextMessage.value = res.error === 'room_not_found'
+        ? '等待房主创建房间中，届时会自动加入。'
+        : '网络连接失败，正在重试自动加入…'
+      nextTimer = setTimeout(attempt, 2000)
+    } else {
+      autoJoin.value = false
+      nextMessage.value = errorText(res.error)
+    }
+  }
+  await attempt()
+}
 
 const data = ref(null)
 const err = ref('')
@@ -116,6 +170,34 @@ const voteChart = computed(() => {
       </div>
     </div>
 
+    <section class="container next-room" aria-labelledby="next-room-title">
+      <div class="next-room-heading">
+        <div>
+          <h2 id="next-room-title">再来一局</h2>
+          <p>沿用你的玩家身份，继续下一场。</p>
+        </div>
+        <div class="next-room-code">
+          <span>下一个房间</span>
+          <strong>{{ nextId }}</strong>
+        </div>
+      </div>
+      <div class="next-room-actions">
+        <button class="btn-primary" :disabled="nextBusy || autoJoin" @click="enterNext(true)">
+          <span aria-hidden="true" class="next-action-icon">＋</span>
+          新建下一个房间
+        </button>
+        <button v-if="autoJoin" class="next-cancel" @click="cancelAutoJoin">取消自动加入</button>
+        <button v-else :disabled="nextBusy" @click="enterNext(false)">
+          加入下一个房间
+          <span aria-hidden="true" class="next-action-icon">→</span>
+        </button>
+      </div>
+      <div v-if="nextBusy || nextMessage" class="next-room-status" :class="{ 'is-waiting': autoJoin || nextBusy }" role="status" aria-live="polite">
+        <span v-if="autoJoin || nextBusy" class="next-status-dot" aria-hidden="true"></span>
+        <span>{{ nextBusy ? '正在进入下一个房间…' : nextMessage }}</span>
+      </div>
+    </section>
+
     <!-- 投票柱状图：横向条，长度按得票数比例 -->
     <div class="container vote-section">
       <div class="subtitle">投票分布</div>
@@ -204,6 +286,76 @@ const voteChart = computed(() => {
 </template>
 
 <style scoped>
+.next-room {
+  border-color: rgba(229, 189, 84, 0.28);
+  background: linear-gradient(125deg, rgba(229, 189, 84, 0.08), transparent 65%), var(--surface);
+}
+.next-room-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.next-room h2 { margin: 0 0 6px; font-size: 1.15rem; font-weight: 750; }
+.next-room-heading p { margin: 0; color: var(--text-dim); font-size: 0.78rem; line-height: 1.6; }
+.next-room-code {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border: 1px solid rgba(229, 189, 84, 0.2);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.16);
+  text-align: center;
+}
+.next-room-code span { display: block; color: var(--text-dim); font-size: 0.65rem; margin-bottom: 3px; }
+.next-room-code strong {
+  text-transform: none;
+  color: var(--accent-hover);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 1.15rem;
+  letter-spacing: 1px;
+}
+.next-room-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.next-room-actions button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 46px;
+  margin: 0;
+  padding: 11px 8px;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+.next-action-icon { color: inherit; font-size: 1.05rem; line-height: 1; }
+.next-room-actions .next-cancel { color: var(--text-dim); background: transparent; }
+.next-room-actions button:focus-visible { outline: 2px solid var(--accent-hover); outline-offset: 3px; }
+.next-room-status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+.next-room-status span { color: var(--evil); }
+.next-room-status.is-waiting span { color: var(--text-dim); }
+.next-status-dot {
+  flex: 0 0 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px rgba(229, 189, 84, 0.1);
+}
+@media (max-width: 360px) {
+  .next-room-heading { align-items: flex-start; }
+  .next-room-code { padding: 8px; }
+  .next-room-actions { grid-template-columns: 1fr; }
+}
+
 /* 顶部结算：被处决者 / 获胜阵营 / 你的最终身份 / 你的结果，网格排布 */
 .result-summary {
   display: grid;

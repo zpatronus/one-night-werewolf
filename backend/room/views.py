@@ -223,8 +223,15 @@ def create_room(request):
         avatar = _avatar(body.get("avatar"))
         if Room.objects.filter(roomid=c["roomid"]).exists():
             raise ApiError("roomid_taken")
+        # A saved template targets a future group, not the lone creator.
+        # Invalid or missing drafts must never prevent room creation.
+        board = body.get("board")
+        if not game.valid_board_shape(board) or not game.validate_board(
+            board, sum(board.values()) - 3
+        ):
+            board = game.board_template()
         with transaction.atomic():
-            room = Room.objects.create(roomid=c["roomid"], board=game.board_template())
+            room = Room.objects.create(roomid=c["roomid"], board=board)
             player = Player.objects.create(
                 room=room, userid=c["userid"], userpsw=c["userpsw"], avatar=avatar,
             )

@@ -75,3 +75,12 @@ export const PHASE_TEXT = {
   reveal: '揭晓与投票',
   result: '结算',
 }
+
+// Send the saved draft as-is; the server validates it and falls back safely.
+export function localBoardForCreation() {
+  try {
+    return JSON.parse(localStorage.getItem('waitingBoard'))
+  } catch {
+    return null
+  }
+}

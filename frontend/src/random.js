@@ -31,11 +31,11 @@ export function randomPsw() {
   return s
 }
 
-// Room id: 5 letters from an unambiguous set (no 0/O/1/I).
-const ROOM_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+// Room id: 6 characters from the full base-62 alphabet.
+const ROOM_CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
 export function randomRoomId() {
   let s = ''
-  for (let i = 0; i < 5; i++) s += ROOM_CHARS[Math.floor(Math.random() * ROOM_CHARS.length)]
+  for (let i = 0; i < 6; i++) s += ROOM_CHARS[Math.floor(Math.random() * ROOM_CHARS.length)]
   return s
 }
 
@@ -66,29 +66,15 @@ export function prefillRoomId() {
   return roomid
 }
 
-// ---- The room-id "下一个" (next) button ----
-// Mirrors Avalon's generateNextRoomId(): keep any letter prefix and STEP the
-// trailing number (appending '0' when there is none), so repeated clicks walk
-// the id forward predictably instead of jumping about. Only when stepping would
-// exceed the 6-char [A-Za-z0-9] limit do we fall back to a fresh random id.
-function isValidRoomId(id) {
-  return /^[A-Za-z0-9]{1,6}$/.test(id)
-}
+// Base 62, preserving leading zero digits and wrapping at the six-character limit.
+const ROOM_DIGITS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
 export function nextRoomId(currentId) {
-  if (currentId === '') return randomRoomId()
-
-  let prefix = ''
-  let numberPart = ''
-  for (let i = 0; i < currentId.length; i++) {
-    const c = currentId[i]
-    if (isNaN(parseInt(c))) {
-      prefix += c
-    } else {
-      numberPart = currentId.slice(i)
-      break
-    }
+  if (typeof currentId !== 'string' || !/^[A-Za-z0-9]{1,6}$/.test(currentId)) return 'a'
+  const digits = [...currentId]
+  for (let i = digits.length - 1; i >= 0; i--) {
+    const next = ROOM_DIGITS.indexOf(digits[i]) + 1
+    digits[i] = ROOM_DIGITS[next % 62]
+    if (next < 62) return digits.join('')
   }
-
-  const stepped = numberPart ? prefix + (parseInt(numberPart) + 1) : prefix + '0'
-  return isValidRoomId(stepped) ? stepped : randomRoomId()
+  return digits.length < 6 ? 'b' + digits.join('') : digits.join('')
 }

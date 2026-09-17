@@ -93,9 +93,9 @@ function describe() {
       if (info.center_picks && info.center_picks.length) {
         const items = info.center_picks.map((idx, k) => `中央第 ${idx + 1} 张`)
         const cards = info.center_picks.map((idx, k) => peek(info.peeked[k]))
-        return `你是预言家。你选择窥视${items.join('、')}，它们分别是 ${cards.join('、')}。`
+        return `你是预言家。你选择窥视${items.join('、')}，牌面分别是 ${cards.join('、')}。`
       }
-      return `你是预言家。你选择窥视 ${info.target} 的身份，他的牌是 ${peek(info.peeked?.[0])}。`
+      return `你是预言家。你选择窥视 ${info.target} 的身份，他的初始身份（换牌前）是 ${peek(info.peeked?.[0])}。`
     case 'robber':
       return `你是强盗。你选择与 ${info.target} 交换身份，交换完成当时看到的牌是 ${peek(info.new_role)}。`
     case 'troublemaker':
