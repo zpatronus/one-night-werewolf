@@ -148,81 +148,121 @@ async function vote() {
 
 <template>
   <div v-if="me">
-    <div v-if="props.infoOnly" class="container">
-      <h1 class="subtitle">查看夜间信息</h1>
-      <p>请管理好表情，保持安静。</p>
-      <p class="status">{{ remaining }} 秒后开始讨论</p>
-    </div>
-    <h1 v-else class="subtitle surface-panel">讨论与投票</h1>
+    <section v-if="props.infoOnly" class="container night-info" aria-labelledby="night-info-title">
+      <header class="night-heading">
+        <span class="night-eyebrow">夜晚结束 · 私人信息</span>
+        <h1 id="night-info-title">今夜，你得知了什么</h1>
+        <p>请安静阅读，管理好表情。</p>
+      </header>
 
-    <!-- One-time context (from /reveal, not the poll): who I am + room + template. -->
-    <div v-if="!props.infoOnly" class="container room-info">
-      <div class="me-card">
-        <img class="me-avatar" :src="meCard.avatar" :alt="meCard.userid" />
-        <span class="me-name">{{ meCard.userid }}</span>
-      </div>
-      <div class="info-grid">
-        <div class="info-row">
-          <span class="info-label">房间ID</span>
-          <span class="info-value">{{ me.roomid }}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">玩家数量</span>
-          <span class="info-value">{{ me.user_count }}</span>
+      <div class="night-identity">
+        <span class="night-role-icon" aria-hidden="true">{{ roleIcon(me.role) }}</span>
+        <div>
+          <span class="night-label">你的初始身份</span>
+          <h2>{{ roleName(me.role) }}</h2>
         </div>
       </div>
-      <div class="board current-template">
-        <span v-for="role in boardChips" :key="role" class="board-chip">
-          {{ roleIcon(role) }} {{ roleName(role) }} ×{{ me.board[role] }}
-        </span>
-      </div>
-    </div>
 
-    <div class="container role-banner">
-      <button v-if="!props.infoOnly" type="button" class="toggle-role" @click="showRole = !showRole">
-        {{ showRole ? '👁 隐藏身份' : '🔒 身份已隐藏' }}
-      </button>
-      <template v-if="showRole">
-        <span class="role-emoji">{{ roleIcon(me.role) }}</span>
-        <div><b>你最初的身份：{{ roleName(me.role) }}</b></div>
-        <!-- 只有失眠者拥有知道最终身份的夜技能；其他人都不知道自己的最终身份。 -->
-        <div v-if="me.role === 'insomniac' && me.info?.final_role" class="final-role">
-          <b>你的最终身份：</b>{{ roleIcon(me.info.final_role) }} {{ roleName(me.info.final_role) }}
+      <div class="night-observation">
+        <span class="night-label">夜间信息</span>
+        <p>{{ describe() }}</p>
+        <div v-if="me.role === 'insomniac' && me.info?.final_role" class="night-final-role">
+          <span>你的最终身份</span>
+          <strong>{{ roleIcon(me.info.final_role) }} {{ roleName(me.info.final_role) }}</strong>
         </div>
-        <p style="line-height:1.8">{{ describe() }}</p>
-      </template>
-      <p v-else class="muted" style="text-align:center;margin:8px 0 0">
-        你的身份与夜间信息已隐藏，点击上方按钮查看。
-      </p>
-    </div>
+      </div>
 
-    <div v-if="!props.infoOnly" class="container">
-      <div class="subtitle">投出处决对象</div>
-      <p class="muted" style="font-size:13px">选择一位玩家投出去，或弃权。每人只能投一次。</p>
+      <footer class="night-countdown">
+        <div class="night-clock" role="timer" :aria-label="`${remaining} 秒后开始讨论`">
+          <svg viewBox="0 0 64 64" aria-hidden="true">
+            <circle class="clock-track" cx="32" cy="32" r="28" />
+            <circle class="clock-progress" cx="32" cy="32" r="28" pathLength="100"
+              :style="{ strokeDashoffset: 100 - remaining * 10 }" />
+          </svg>
+          <span>{{ remaining }}<small>秒</small></span>
+        </div>
+        <div class="night-countdown-copy">
+          <strong>片刻后，开始讨论</strong>
+          <p>倒计时结束后自动进入</p>
+        </div>
+      </footer>
+      <p class="night-reminder">无需展示屏幕 · 讨论时仍可回看信息</p>
+    </section>
+    <section v-else class="container discussion-header">
+      <span class="night-eyebrow">天亮了 · 听听每个人的故事</span>
+      <h1>讨论与投票</h1>
+      <p class="discussion-intro">分享线索，找出说法中的破绽。</p>
+      <div class="discussion-context">
+        <div class="discussion-player">
+          <img :src="meCard.avatar" :alt="meCard.userid" />
+          <strong>{{ meCard.userid }}</strong>
+        </div>
+        <div class="discussion-room"><span>房间 {{ me.roomid }}</span><span>{{ me.user_count }} 位玩家</span></div>
+      </div>
+      <details class="discussion-board">
+        <summary>本局身份牌 <span>查看配置</span></summary>
+        <div class="board-chips">
+          <span v-for="role in boardChips" :key="role" class="board-chip">
+            {{ roleIcon(role) }} {{ roleName(role) }} ×{{ me.board[role] }}
+          </span>
+        </div>
+      </details>
+    </section>
 
-      <div class="select-grid">
-        <div
-          v-for="u in users"
-          :key="u.userid"
-          class="select-card"
-          :class="{ selected: target === u.userid }"
-          @click="pick(u.userid)"
-        >
-          <span v-if="target === u.userid" class="pick-tag">✔ 处决</span>
+    <section v-if="!props.infoOnly" class="container discussion-private">
+      <div class="section-heading">
+        <div><span class="night-label">仅自己可见</span><h2>我的夜间信息</h2></div>
+        <button type="button" class="toggle-role" :aria-expanded="showRole" aria-controls="private-information" @click="showRole = !showRole">
+          {{ showRole ? '隐藏信息' : '查看信息' }}
+        </button>
+      </div>
+      <div v-if="showRole" id="private-information">
+        <div class="night-identity">
+          <span class="night-role-icon" aria-hidden="true">{{ roleIcon(me.role) }}</span>
+          <div><span class="night-label">你的初始身份</span><h2>{{ roleName(me.role) }}</h2></div>
+        </div>
+        <div class="night-observation">
+          <p>{{ describe() }}</p>
+          <div v-if="me.role === 'insomniac' && me.info?.final_role" class="night-final-role">
+            <span>你的最终身份</span>
+            <strong>{{ roleIcon(me.info.final_role) }} {{ roleName(me.info.final_role) }}</strong>
+          </div>
+        </div>
+      </div>
+      <p v-else class="private-hidden">信息已收起，需要时可随时回看。</p>
+    </section>
+
+    <section v-if="!props.infoOnly" class="container discussion-vote">
+      <div class="section-heading">
+        <div><span class="night-label">讨论之后，再做决定</span><h2>投出你的一票</h2></div>
+        <span class="vote-badge">一人一票</span>
+      </div>
+      <p class="vote-help">选择一位其他玩家，或选择弃权。提交后不可更改。</p>
+
+      <div class="select-grid" aria-label="选择投票对象">
+        <button v-for="u in users" :key="u.userid" type="button"
+          class="select-card" :class="{ selected: target === u.userid }"
+          :aria-pressed="target === u.userid" :disabled="voted || busy" @click="pick(u.userid)">
+          <span class="pick-tag" aria-hidden="true">{{ target === u.userid ? '✓' : '' }}</span>
           <img :src="avatarUrl(u.avatar)" alt="" />
           <span class="select-name">{{ u.userid }}</span>
-        </div>
+        </button>
       </div>
+      <button type="button" class="abstain-choice" :class="{ selected: !target }"
+        :aria-pressed="!target" :disabled="voted || busy" @click="abstain">
+        <span class="abstain-symbol" aria-hidden="true">—</span>
+        <span><strong>弃权</strong><small>不选择处决对象</small></span>
+        <span class="abstain-check" aria-hidden="true">{{ !target ? '✓' : '' }}</span>
+      </button>
 
-      <p class="status" style="margin-top:14px">{{ selectionText() }}</p>
-
-      <div class="vote-actions">
+      <div class="vote-footer">
+        <p class="vote-selection" role="status">{{ voted ? '投票已提交，等待其他玩家。' : selectionText() }}</p>
         <button class="btn-primary btn-block" :disabled="voted || busy" @click="openConfirm">
-          {{ voted ? '你已投票 ✓' : target ? `确认投票（${target}）` : '确认弃权' }}
+          {{ voted ? '已投票 ✓' : busy ? '正在提交…' : target ? `确认投票 · ${target}` : '确认弃权' }}
         </button>
       </div>
       <p v-if="err" class="error">{{ err }}</p>
-    </div>
+    </section>
 
     <ConfirmDialog
       v-if="confirmOpen"
@@ -241,111 +281,105 @@ async function vote() {
 </template>
 
 <style scoped>
-.toggle-role {
-  align-self: center;
-  margin-bottom: 10px;
-  padding: 8px 18px;
-  border-radius: 999px;
-  border: 1px solid rgba(229, 189, 84, 0.4);
-  background: rgba(229, 189, 84, 0.10);
-  color: var(--accent);
-  font-weight: 700;
-  cursor: pointer;
-}
-.select-grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-}
-.select-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  width: 96px;
-  padding: 10px 6px 8px;
-  border: 2px solid transparent;
-  border-radius: 12px;
-  cursor: pointer;
-}
-.select-card.selected {
-  border-color: var(--accent);
-  background: rgba(229, 189, 84, 0.10);
-}
-.select-card img {
-  width: 65px;
-  height: 65px;
-  border-radius: 50%;
-  pointer-events: none;
-}
-.select-name {
-  font-size: 1rem;
-  font-weight: 600;
-  max-width: 100%;
+.night-info {
+  padding: 28px 24px 20px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  border-color: rgba(229, 189, 84, 0.28);
+  background: radial-gradient(ellipse at 100% 0, rgba(229, 189, 84, 0.09), transparent 55%), var(--surface);
 }
-.pick-tag {
-  position: absolute;
-  top: 4px;
-  right: 6px;
-  color: var(--accent);
-  font-weight: 800;
-  font-size: 0.8rem;
+.night-heading { text-align: center; }
+.night-eyebrow { color: var(--accent); font-size: 0.7rem; letter-spacing: 0.16em; }
+.night-heading h1 { margin: 12px 0 8px; font-size: clamp(1.25rem, 5vw, 1.55rem); font-weight: 700; }
+.night-heading p { margin: 0; color: var(--text-dim); font-size: 0.85rem; }
+.night-identity { display: flex; align-items: center; gap: 16px; margin: 26px 0 20px; }
+.night-role-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 66px;
+  height: 66px;
+  border: 1px solid rgba(229, 189, 84, 0.22);
+  border-radius: 18px;
+  background: rgba(229, 189, 84, 0.06);
+  font-size: 2.3rem;
 }
-.room-info {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.me-card {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-}
-.me-avatar {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid var(--accent);
-}
-.me-name {
-  font-size: 1.3rem;
-  font-weight: 800;
-}
-.board {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  background: rgba(229, 189, 84, 0.05);
-  border: 1px dashed rgba(229, 189, 84, 0.3);
-  border-radius: var(--radius-sm);
-  padding: 12px;
-}
-.board-chip {
-  display: inline-block;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: var(--surface-2);
+.night-label { display: block; color: var(--text-dim); font-size: 0.72rem; letter-spacing: 0.06em; }
+.night-identity h2 { margin: 5px 0 0; font-size: 1.3rem; }
+.night-observation {
+  padding: 18px;
   border: 1px solid var(--border);
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text);
+  border-left: 2px solid var(--accent);
+  border-radius: 4px 12px 12px 4px;
+  background: rgba(5, 12, 23, 0.35);
 }
-.final-role {
-  display: inline-block;
-  margin: 10px 0 4px;
-  padding: 8px 16px;
-  border-radius: var(--radius-sm);
-  background: rgba(229, 189, 84, 0.10);
-  border: 1px solid rgba(229, 189, 84, 0.4);
-  color: var(--accent);
-  font-size: 1.05rem;
+.night-observation p { margin: 10px 0 0; font-size: 1rem; line-height: 1.85; overflow-wrap: anywhere; }
+.night-final-role { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.night-final-role > span { color: var(--text-dim); font-size: 0.78rem; }
+.night-final-role strong { color: var(--accent-hover); font-size: 1.05rem; }
+.night-countdown { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 24px; }
+.night-clock { position: relative; flex: 0 0 64px; height: 64px; }
+.night-clock svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.night-clock circle { fill: none; stroke-width: 2; }
+.clock-track { stroke: rgba(229, 189, 84, 0.12); }
+.clock-progress { stroke: var(--accent); stroke-dasharray: 100; stroke-linecap: round; transition: stroke-dashoffset 0.5s linear; }
+.night-clock > span { position: absolute; inset: 0; display: flex; align-items: baseline; justify-content: center; padding-top: 17px; gap: 2px; font-size: 1.4rem; font-variant-numeric: tabular-nums; color: var(--accent-hover); }
+.night-clock small { color: var(--text-dim); font-size: 0.65rem; }
+.night-countdown-copy strong { font-size: 0.88rem; font-weight: 600; }
+.night-countdown-copy p { margin: 6px 0 0; color: var(--text-dim); font-size: 0.75rem; }
+.night-reminder { margin: 20px 0 0; text-align: center; color: var(--text-dim); font-size: 0.7rem; }
+@media (max-width: 360px) {
+  .night-info { padding: 22px 16px 18px; }
+  .night-observation { padding: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .clock-progress { transition: none; }
+}
+
+.discussion-header {
+  padding: 26px 22px 18px;
+  border-color: rgba(229, 189, 84, 0.25);
+  background: radial-gradient(ellipse at 0 0, rgba(229, 189, 84, 0.10), transparent 65%), var(--surface);
+}
+.discussion-header h1 { margin: 10px 0 8px; font-size: 1.6rem; }
+.discussion-intro { margin: 0; color: var(--text-dim); font-size: 0.85rem; }
+.discussion-context { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 24px; }
+.discussion-player { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.discussion-player img { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border-strong); }
+.discussion-player strong { font-size: 0.95rem; overflow-wrap: anywhere; }
+.discussion-room { display: grid; gap: 4px; text-align: right; flex-shrink: 0; }
+.discussion-room span { color: var(--text-dim); font-size: 0.72rem; }
+.discussion-board { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+.discussion-board summary { cursor: pointer; color: var(--text-dim); font-size: 0.78rem; }
+.discussion-board summary span { float: right; font-size: 0.7rem; color: var(--accent); }
+.board-chips { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 12px; }
+.board-chip { padding: 5px 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); font-size: 0.72rem; }
+.discussion-private, .discussion-vote { padding: 22px; }
+.section-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.section-heading h2 { margin: 5px 0 0; font-size: 1.1rem; }
+.toggle-role { flex-shrink: 0; margin: 0; padding: 8px 12px; border-radius: 999px; color: var(--accent); border-color: rgba(229, 189, 84, 0.25); background: rgba(229, 189, 84, 0.06); font-size: 0.75rem; }
+.discussion-private .night-identity { margin: 20px 0 16px; gap: 12px; }
+.discussion-private .night-role-icon { flex-basis: 50px; height: 50px; font-size: 1.8rem; border-radius: 14px; }
+.discussion-private .night-identity h2 { font-size: 1.1rem; }
+.discussion-private .night-observation p { margin: 0; font-size: 0.9rem; }
+.private-hidden { margin: 16px 0 0; color: var(--text-dim); font-size: 0.8rem; }
+.vote-badge { color: var(--accent); border: 1px solid rgba(229, 189, 84, 0.22); border-radius: 6px; padding: 5px 8px; font-size: 0.65rem; flex-shrink: 0; }
+.vote-help { color: var(--text-dim); font-size: 0.78rem; line-height: 1.7; margin: 14px 0 18px; }
+.select-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.select-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 9px; min-width: 0; margin: 0; padding: 18px 6px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
+.select-card.selected, .abstain-choice.selected { border-color: var(--accent); background: rgba(229, 189, 84, 0.09); }
+.select-card img { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; }
+.select-name { font-size: 0.85rem; font-weight: 600; max-width: 100%; overflow-wrap: anywhere; }
+.pick-tag { position: absolute; top: 5px; right: 6px; color: var(--accent); font-size: 0.75rem; }
+.abstain-choice { display: flex; align-items: center; width: 100%; gap: 12px; margin: 12px 0 0; padding: 12px 14px; text-align: left; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; }
+.abstain-symbol { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--surface-2); color: var(--text-dim); }
+.abstain-choice strong { display: block; font-size: 0.85rem; }
+.abstain-choice small { display: block; margin-top: 3px; color: var(--text-dim); font-size: 0.7rem; }
+.abstain-check { margin-left: auto; color: var(--accent); }
+.vote-footer { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.vote-selection { color: var(--text-dim); text-align: center; margin: 0 0 12px; font-size: 0.8rem; overflow-wrap: anywhere; }
+.discussion-vote button:focus-visible, .toggle-role:focus-visible, .discussion-board summary:focus-visible { outline: 2px solid var(--accent-hover); outline-offset: 3px; }
+@media (max-width: 360px) {
+  .discussion-header, .discussion-private, .discussion-vote { padding: 18px 14px; }
+  .select-grid { gap: 6px; }
+  .select-card img { width: 44px; height: 44px; }
 }
 </style>

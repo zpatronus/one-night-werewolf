@@ -6,7 +6,7 @@ import { useRouter } from 'vue-router'
 import { nextRoomId } from '../random'
 import { getMyAvatar } from '../avatar'
 import { creds, setAuth } from '../store'
-import { roleName, roleIcon, errorText, localBoardForCreation, ROLE_DISPLAY } from '../gameConfig'
+import { roleName, roleIcon, errorText, localBoardForCreation, verdictText, ROLE_DISPLAY } from '../gameConfig'
 import { avatarUrl } from '../avatar'
 import { sortPlayers } from '../playerOrder'
 
@@ -142,33 +142,24 @@ const voteChart = computed(() => {
 
 <template>
   <div v-if="data">
-    <div class="container">
-      <div class="subtitle">结算</div>
-      <div class="result-summary">
-        <div class="summary-tile">
-          <div class="summary-label">被处决者</div>
-          <div class="summary-value">
-            <template v-if="data.executed">🔨 {{ data.executed }} 被处决出局</template>
-            <template v-else>弃权或平票，无人被处决</template>
-          </div>
-        </div>
-        <div class="summary-tile" :class="data.good_win ? 'good' : 'evil'">
-          <div class="summary-label">获胜阵营</div>
-          <div class="summary-value">{{ data.good_win ? '🎉 好人阵营获胜' : '🎉 狼人阵营获胜' }}</div>
-        </div>
-        <div class="summary-tile" :class="me ? roleFaction(me.final_role) : ''">
-          <div class="summary-label">你的最终身份</div>
-          <div class="summary-value">
-            <template v-if="me">{{ roleIcon(me.final_role) }} {{ roleName(me.final_role) }}</template>
-            <template v-else>—</template>
-          </div>
-        </div>
-        <div class="summary-tile" :class="me ? (me.won ? 'win' : 'lose') : ''">
-          <div class="summary-label">你的结果</div>
-          <div class="summary-value">{{ me ? (me.won ? '你胜利了 ✔' : '你失败了 ✘') : '—' }}</div>
-        </div>
+    <section class="container result-hero">
+      <span class="result-eyebrow">一夜落幕 · 真相揭晓</span>
+      <div class="result-emblem" aria-hidden="true">{{ data.reason === 'no_evil_but_votes' ? '☾' : data.good_win ? '☀' : '☾' }}</div>
+      <h1>{{ data.reason === 'no_evil_but_votes' ? '全员落败' : data.reason === 'no_evil_players' ? '全员获胜' : data.good_win ? '好人阵营获胜' : '狼人阵营获胜' }}</h1>
+      <p class="result-reason">{{ verdictText(data.reason) }}</p>
+      <div class="execution-note">
+        <span>处决结果</span>
+        <strong>{{ data.executed || '无人被处决' }}</strong>
       </div>
-    </div>
+      <div v-if="me" class="personal-result">
+        <img :src="avatarUrl(me.avatar)" :alt="me.userid" />
+        <div class="personal-identity">
+          <span>{{ me.userid }} · 最终身份</span>
+          <strong>{{ roleIcon(me.final_role) }} {{ roleName(me.final_role) }}</strong>
+        </div>
+        <span class="personal-verdict" :class="{ won: me.won }">{{ me.won ? '胜利' : '落败' }}</span>
+      </div>
+    </section>
 
     <section class="container next-room" aria-labelledby="next-room-title">
       <div class="next-room-heading">
@@ -200,7 +191,7 @@ const voteChart = computed(() => {
 
     <!-- 投票柱状图：横向条，长度按得票数比例 -->
     <div class="container vote-section">
-      <div class="subtitle">投票分布</div>
+      <div class="result-section-heading"><div><span class="result-eyebrow">每一票，都有答案</span><h2>投票分布</h2></div><span class="section-count">{{ players.length }} 位玩家</span></div>
       <div v-if="voteChart.length" class="vote-chart">
         <div v-for="e in voteChart" :key="e.target" class="vote-bar-row">
           <span class="vote-target" :class="targetFaction(e.target)">
@@ -218,7 +209,9 @@ const voteChart = computed(() => {
         </div>
       </div>
       <p v-else class="muted">全部弃权，无人被投。</p>
-      <div class="vote-details">
+      <details class="vote-breakdown">
+        <summary>查看每位玩家的投票</summary>
+        <div class="vote-details">
         <div v-for="p in players" :key="'v' + p.userid" class="vote-detail-row">
           <span class="vote-detail-bubble" :class="targetFaction(p.userid)">
             <img class="vote-detail-avatar small" :src="avatarUrl(p.avatar)" :alt="p.userid" />
@@ -239,12 +232,13 @@ const voteChart = computed(() => {
           </span>
           <span v-else class="vote-detail-abstain">弃权</span>
         </div>
-      </div>
+        </div>
+      </details>
     </div>
 
     <!-- 每位玩家：最初身份 → 最终身份 + 胜负 -->
     <div class="container">
-      <div class="subtitle">角色变化</div>
+      <div class="result-section-heading"><div><span class="result-eyebrow">从夜晚到天亮</span><h2>身份揭晓</h2></div><span class="section-count">初始 → 最终</span></div>
       <div class="transition-list">
         <div
           v-for="p in players"
@@ -257,7 +251,7 @@ const voteChart = computed(() => {
             <div class="transition-top">
               <span class="transition-user">{{ p.userid }}</span>
               <span class="transition-verdict" :class="p.won ? 'win' : 'lose'">
-                {{ p.won ? '胜' : '负' }}
+                {{ p.won ? '胜利' : '落败' }}
               </span>
             </div>
             <div class="transition-change">
@@ -272,7 +266,7 @@ const voteChart = computed(() => {
 
     <!-- 夜晚操作回放（后端 JSON，前端渲染） -->
     <div v-if="ops.length" class="container">
-      <div class="subtitle">夜晚行动</div>
+      <div class="result-section-heading"><div><span class="result-eyebrow">按生效顺序，还原整夜</span><h2>夜间回放</h2></div></div>
       <div class="ops-list">
         <div v-for="(op, i) in ops" :key="i" class="ops-step">
           <span class="ops-index">{{ i + 1 }}</span>
@@ -286,6 +280,38 @@ const voteChart = computed(() => {
 </template>
 
 <style scoped>
+.result-hero {
+  text-align: center;
+  padding: 28px 22px 20px;
+  border-color: rgba(229, 189, 84, 0.3);
+  background: radial-gradient(ellipse at 50% 0, rgba(229, 189, 84, 0.13), transparent 65%), var(--surface);
+}
+.result-eyebrow { color: var(--accent); font-size: 0.68rem; letter-spacing: 0.1em; }
+.result-emblem { display: grid; place-items: center; width: 72px; height: 72px; margin: 22px auto 18px; border-radius: 50%; border: 1px solid rgba(229, 189, 84, 0.35); outline: 5px solid rgba(229, 189, 84, 0.04); background: rgba(229, 189, 84, 0.06); color: var(--accent-hover); font-size: 2.5rem; }
+.result-hero h1 { margin: 0; font-size: clamp(1.5rem, 6vw, 1.9rem); letter-spacing: 0.05em; }
+.result-reason { margin: 12px auto 18px; max-width: 30em; color: var(--text-dim); font-size: 0.82rem; line-height: 1.8; }
+.execution-note { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 0.8rem; }
+.execution-note > span { color: var(--text-dim); }
+.execution-note strong { font-weight: 600; overflow-wrap: anywhere; }
+.personal-result { display: flex; align-items: center; gap: 12px; margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--border); text-align: left; }
+.personal-result img { width: 44px; height: 44px; border-radius: 50%; }
+.personal-identity { display: grid; gap: 5px; min-width: 0; }
+.personal-identity > span { color: var(--text-dim); font-size: 0.7rem; overflow-wrap: anywhere; }
+.personal-identity strong { font-size: 0.95rem; }
+.personal-verdict { margin-left: auto; flex-shrink: 0; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; color: var(--text-dim); font-size: 0.8rem; }
+.personal-verdict.won { color: var(--accent-hover); background: rgba(229, 189, 84, 0.08); border-color: rgba(229, 189, 84, 0.3); }
+.result-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 3px 0 20px; }
+.result-section-heading h2 { margin: 6px 0 0; font-size: 1.15rem; }
+.section-count { color: var(--text-dim); font-size: 0.7rem; white-space: nowrap; }
+.vote-breakdown { border-top: 1px solid var(--border); margin-top: 18px; padding-top: 14px; }
+.vote-breakdown summary { color: var(--text-dim); font-size: 0.78rem; cursor: pointer; }
+.vote-breakdown summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.vote-breakdown .vote-details { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 16px; }
+.vote-breakdown .vote-detail-row { display: grid; grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr); }
+.vote-breakdown .vote-detail-bubble { border: 0; background: transparent; padding: 4px 0; }
+.vote-breakdown .vote-detail-user { white-space: normal; overflow-wrap: anywhere; font-size: 0.8rem; }
+.vote-breakdown .vote-detail-abstain { border: 0; background: none; padding: 4px 0; }
+
 .next-room {
   border-color: rgba(229, 189, 84, 0.28);
   background: linear-gradient(125deg, rgba(229, 189, 84, 0.08), transparent 65%), var(--surface);
@@ -356,43 +382,6 @@ const voteChart = computed(() => {
   .next-room-actions { grid-template-columns: 1fr; }
 }
 
-/* 顶部结算：被处决者 / 获胜阵营 / 你的最终身份 / 你的结果，网格排布 */
-.result-summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 8px;
-}
-.summary-tile {
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  min-width: 0;
-}
-.summary-tile.good { border-color: rgba(69, 183, 245, 0.4); }
-.summary-tile.evil { border-color: rgba(255, 139, 69, 0.4); }
-.summary-tile.win { border-color: rgba(46, 204, 113, 0.45); }
-.summary-tile.lose { border-color: rgba(231, 76, 60, 0.45); }
-.summary-label {
-  font-size: 0.72rem;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  margin-bottom: 4px;
-}
-.summary-value {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--text);
-  line-height: 1.4;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.summary-tile.good .summary-value { color: var(--good); }
-.summary-tile.evil .summary-value { color: var(--evil); }
-.summary-tile.win .summary-value { color: #2ecc71; }
-.summary-tile.lose .summary-value { color: #e74c3c; }
-
 .transition-list { display: flex; flex-direction: column; gap: 8px; }
 .transition-row {
   display: grid;
@@ -404,8 +393,8 @@ const voteChart = computed(() => {
   border-radius: var(--radius-sm);
   background: var(--surface-2);
 }
-.transition-row.win { border-color: rgba(46, 204, 113, 0.45); }
-.transition-row.lose { border-color: rgba(231, 76, 60, 0.45); }
+.transition-row.win { border-color: rgba(229, 189, 84, 0.25); }
+.transition-row.lose { border-color: var(--border); }
 .transition-avatar { width: 40px; height: 40px; border-radius: 50%; }
 .transition-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .transition-top {
@@ -430,19 +419,19 @@ const voteChart = computed(() => {
   background: rgba(229, 189, 84, 0.08);
   border: 1px solid rgba(229, 189, 84, 0.25);
   color: var(--text);
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: 0.78rem;
+  font-weight: 500;
   white-space: nowrap;
 }
 .transition-arrow { color: var(--text-dim); }
 .transition-verdict {
   font-weight: 800;
-  font-size: 1rem;
-  min-width: 24px;
+  font-size: 0.75rem;
+  min-width: 32px;
   text-align: right;
 }
-.transition-verdict.win { color: #2ecc71; }
-.transition-verdict.lose { color: #e74c3c; }
+.transition-verdict.win { color: var(--accent-hover); }
+.transition-verdict.lose { color: var(--text-dim); }
 
 .ops-list { display: flex; flex-direction: column; gap: 6px; }
 .ops-step {
@@ -470,7 +459,7 @@ const voteChart = computed(() => {
 
 /* 投票分布柱状图 */
 .vote-section {
-  max-width: 400px;
+  max-width: 100%;
   margin-left: auto;
   margin-right: auto;
 }
@@ -484,15 +473,15 @@ const voteChart = computed(() => {
   /* fixed width so every bar track starts at the same x and has equal length,
      regardless of how long a username / role name happens to be */
   flex: none;
-  width: 130px;
+  width: 100px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 1px;
+  align-items: flex-start;
+  gap: 5px;
   font-weight: 700;
   color: var(--text);
-  text-align: center;
-  line-height: 1.15;
+  text-align: left;
+  line-height: 1.4;
 }
 .vote-target.good { color: var(--good); }
 .vote-target.evil { color: var(--evil); }
@@ -505,7 +494,7 @@ const voteChart = computed(() => {
 .vote-bar-track {
   position: relative;
   flex: 1;
-  height: 20px;
+  height: 10px;
   border-radius: 4px;
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -576,5 +565,22 @@ const voteChart = computed(() => {
   border: 1px dashed var(--border);
   color: var(--text-dim);
   font-size: 0.85rem;
+}
+.ops-list { gap: 0; }
+.ops-step { position: relative; border: 0; background: transparent; padding: 0 0 22px; gap: 14px; }
+.ops-step:not(:last-child)::before { content: ''; position: absolute; left: 10px; top: 27px; bottom: 5px; width: 1px; background: rgba(229, 189, 84, 0.22); }
+.ops-step:last-child { padding-bottom: 0; }
+.ops-text { font-size: 0.85rem; line-height: 1.8; overflow-wrap: anywhere; }
+.vote-target { overflow-wrap: anywhere; font-size: 0.85rem; }
+.vote-chart { gap: 16px; }
+@media (max-width: 360px) {
+  .result-hero { padding: 24px 16px 18px; }
+  .transition-row { padding: 10px; gap: 8px; }
+  .role-chip { padding: 3px 6px; font-size: 0.72rem; }
+  .transition-change { gap: 5px; }
+  .section-count { font-size: 0.65rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vote-bar-fill { transition: none; }
 }
 </style>
