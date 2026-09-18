@@ -39,6 +39,13 @@ onMounted(() => {
   if (room !== undefined && /^[A-Za-z0-9]{1,6}$/.test(String(room))) {
     roomid.value = String(room)
   }
+  // Consume the invite link: drop ?room= from the URL so a later refresh doesn't
+  // re-fill the inviter's room over whatever the visitor changed it to (e.g. the
+  // "下一个" button). From then on the field restores from localStorage on refresh.
+  if (room !== undefined) {
+    const { room: _dropped, ...rest } = route.query
+    router.replace({ query: rest })
+  }
 })
 
 const canSave = computed(

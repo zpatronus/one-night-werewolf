@@ -46,6 +46,29 @@ function load(file, overrides = {}) {
   return { instance, state, mounted, unmounted, applied, watchers }
 }
 
+test('invitation room is consumed once and the next room survives refresh', async () => {
+  const previousStorage = globalThis.localStorage
+  const saved = new Map([['roomId', 'OLD'], ['userId', 'Alice'], ['userPsw', '1234']])
+  globalThis.localStorage = { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value) }
+  const route = { query: { room: 'ABC12', source: 'invite' } }
+  const overrides = {
+    'vue-router': { useRoute: () => route, useRouter: () => ({ replace: location => { route.query = location.query } }) },
+  }
+  try {
+    const first = load('views/JoinRoomView.vue', overrides)
+    first.mounted.forEach(fn => fn())
+    await nextTick()
+    assert.equal(first.instance.roomid.value, 'ABC12')
+    assert.deepEqual(route.query, { source: 'invite' })
+    first.instance.roomid.value = nextRoomId(first.instance.roomid.value)
+    await nextTick()
+    const refreshed = load('views/JoinRoomView.vue', overrides)
+    refreshed.mounted.forEach(fn => fn())
+    await nextTick()
+    assert.equal(refreshed.instance.roomid.value, 'ABC13')
+  } finally { globalThis.localStorage = previousStorage }
+})
+
 test('ops countdown uses the server end time and waits for phase transition at zero', () => {
   const { instance: c, state } = load('views/OperationView.vue')
   c.now.value = 100000
