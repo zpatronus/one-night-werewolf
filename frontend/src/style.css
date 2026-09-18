@@ -50,7 +50,7 @@ body::before {
   pointer-events: none;
   background:
     linear-gradient(rgba(5, 10, 20, 0.52), rgba(5, 10, 20, 0.46)),
-    url("./assets/moonlit-village-square.png") center center / cover no-repeat;
+    url("./assets/moonlit-village-square.webp") center center / cover no-repeat;
 }
 
 #app {

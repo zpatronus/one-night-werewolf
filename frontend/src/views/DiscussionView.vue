@@ -177,7 +177,7 @@ async function vote() {
       </header>
 
       <div class="night-identity">
-        <RoleCard :role="me.role" eager class="night-role-art" />
+        <RoleCard :roomid="creds().roomid" :userid="creds().userid" :role="me.role" eager class="night-role-art" />
         <div>
           <span class="night-label">你的初始身份</span>
           <h2>{{ roleName(me.role) }}</h2>
@@ -190,7 +190,7 @@ async function vote() {
         <div v-if="revealedCards.length" class="revealed-cards">
           <figure v-for="(card, index) in revealedCards" :key="index">
             <figcaption>{{ card.label }}</figcaption>
-            <RoleCard :role="card.role" eager />
+            <RoleCard :roomid="creds().roomid" :userid="creds().userid" :role="card.role" eager />
           </figure>
         </div>
       </div>
@@ -223,7 +223,7 @@ async function vote() {
         <summary>本局身份牌 <span>查看配置</span></summary>
         <div class="board-chips">
           <div v-for="role in boardChips" :key="role" class="board-chip">
-            <RoleCard :role="role" />
+            <RoleCard :roomid="creds().roomid" :userid="creds().userid" :role="role" />
             <span>{{ roleName(role) }} ×{{ me.board[role] }}</span>
           </div>
         </div>
@@ -239,7 +239,7 @@ async function vote() {
       </div>
       <div v-if="showRole" id="private-information">
         <div class="night-identity">
-          <RoleCard :role="me.role" eager class="night-role-art" />
+          <RoleCard :roomid="creds().roomid" :userid="creds().userid" :role="me.role" eager class="night-role-art" />
           <div><span class="night-label">你的初始身份</span><h2>{{ roleName(me.role) }}</h2></div>
         </div>
         <div class="night-observation">
@@ -247,7 +247,7 @@ async function vote() {
           <div v-if="revealedCards.length" class="revealed-cards">
           <figure v-for="(card, index) in revealedCards" :key="index">
             <figcaption>{{ card.label }}</figcaption>
-            <RoleCard :role="card.role" eager />
+            <RoleCard :roomid="creds().roomid" :userid="creds().userid" :role="card.role" eager />
           </figure>
         </div>
         </div>

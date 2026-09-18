@@ -218,7 +218,7 @@ async function submit() {
          其他玩家的操作一律保密，绝不展示谁已完成/未完成。 -->
     <div v-if="role" class="container ops-identity">
       <div class="ops-role">
-        <RoleCard :role="role" eager class="ops-role-art" />
+        <RoleCard :roomid="creds().roomid" :userid="creds().userid" :role="role" eager class="ops-role-art" />
         <div><span class="ops-label">你的初始身份</span><h2>{{ roleName(role) }}</h2></div>
       </div>
       <p class="ops-hint">

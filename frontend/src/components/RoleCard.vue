@@ -1,11 +1,20 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { roleName } from '../gameConfig'
 import { cachedImage, cacheImage, forgetImage } from '../imageCache'
+import { localDateKey, roleVariant } from '../roleVariant'
 
-const props = defineProps({ role: String, eager: Boolean })
+const props = defineProps({ role: String, eager: Boolean, roomid: String, userid: String })
+const date = ref(localDateKey())
+let dateTimer
+onMounted(() => {
+  dateTimer = setInterval(() => { date.value = localDateKey() }, 60000)
+})
+onUnmounted(() => clearInterval(dateTimer))
 const images = import.meta.glob('../assets/roles/*.webp', { eager: true, import: 'default' })
-const filename = computed(() => `${props.role}.webp`)
+const filename = computed(() => `${props.role}-${roleVariant(props.role, {
+  roomid: props.roomid, userid: props.userid, date: date.value,
+})}.webp`)
 const bundledSrc = computed(() => images[`../assets/roles/${filename.value}`])
 const src = ref('')
 watch(bundledSrc, url => {

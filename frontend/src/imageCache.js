@@ -1,11 +1,15 @@
 const pending = new Map()
+export const IMAGE_CACHE_TTL = 24 * 60 * 60 * 1000
 const isImage = value => typeof value === 'string' && /^data:image\/webp;base64,[A-Za-z0-9+/]+={0,2}$/.test(value)
 
 export function cachedImage(filename, url) {
   try {
     const entry = JSON.parse(localStorage.getItem(filename))
     // The bundled URL changes when Vite fingerprints new artwork.
-    return entry?.url === url && isImage(entry.data) ? entry.data : null
+    const age = Date.now() - entry?.savedAt
+    if (entry?.url === url && isImage(entry.data) && Number.isFinite(age) && age >= 0 && age < IMAGE_CACHE_TTL) return entry.data
+    forgetImage(filename)
+    return null
   } catch {
     return null
   }
@@ -31,7 +35,7 @@ export function cacheImage(filename, url) {
         reader.onerror = () => reject(reader.error)
         reader.readAsDataURL(blob)
       })
-      if (isImage(data)) localStorage.setItem(filename, JSON.stringify({ url, data }))
+      if (isImage(data)) localStorage.setItem(filename, JSON.stringify({ url, data, savedAt: Date.now() }))
     } catch {
       // Network errors, unavailable storage, and quota limits leave the asset usable.
     }

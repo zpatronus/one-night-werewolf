@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { cachedImage, cacheImage } from '../src/imageCache.js'
+import { cachedImage, cacheImage, IMAGE_CACHE_TTL } from '../src/imageCache.js'
 
 test('image cache uses filename keys, rejects stale data, and tolerates storage failures', async () => {
   const entries = new Map()
@@ -11,6 +11,7 @@ test('image cache uses filename keys, rejects stale data, and tolerates storage 
     globalThis.localStorage = {
       getItem: key => entries.get(key) ?? null,
       setItem: (key, value) => entries.set(key, value),
+      removeItem: key => entries.delete(key),
     }
     globalThis.fetch = async () => {
       requests++
@@ -28,6 +29,19 @@ test('image cache uses filename keys, rejects stale data, and tolerates storage 
     assert.equal(cachedImage('werewolf.webp', '/wolf-v2.webp'), null)
     await cacheImage('werewolf.webp', '/wolf-v2.webp')
     assert.equal(cachedImage('werewolf.webp', '/wolf-v2.webp'), data)
+    const fresh = JSON.parse(entries.get('werewolf.webp'))
+    const now = Date.now
+    try {
+      Date.now = () => fresh.savedAt + IMAGE_CACHE_TTL - 1
+      assert.equal(cachedImage('werewolf.webp', '/wolf-v2.webp'), data)
+      Date.now = () => fresh.savedAt + IMAGE_CACHE_TTL
+      assert.equal(cachedImage('werewolf.webp', '/wolf-v2.webp'), null)
+      assert.equal(entries.has('werewolf.webp'), false)
+      await cacheImage('werewolf.webp', '/wolf-v2.webp')
+      assert.equal(cachedImage('werewolf.webp', '/wolf-v2.webp'), data)
+    } finally { Date.now = now }
+    entries.set('werewolf.webp', JSON.stringify({ url: '/wolf-v2.webp', data }))
+    assert.equal(cachedImage('werewolf.webp', '/wolf-v2.webp'), null)
     entries.set('werewolf.webp', '{broken')
     assert.equal(cachedImage('werewolf.webp', '/wolf-v2.webp'), null)
     globalThis.localStorage = {
