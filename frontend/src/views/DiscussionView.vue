@@ -8,6 +8,7 @@ import { roleName, roleIcon, errorText, ROLE_ORDER } from '../gameConfig'
 import { avatarUrl, getMyAvatar } from '../avatar'
 import { sortPlayers } from '../playerOrder'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import RoleCard from '../components/RoleCard.vue'
 
 const props = defineProps({ infoOnly: Boolean })
 const router = useRouter()
@@ -66,6 +67,26 @@ const meCard = computed(() => ({
   ...(me.value?.me || {}),
   avatar: avatarUrl(me.value?.me?.avatar || getMyAvatar()),
 }))
+
+// Only illustrate cards explicitly returned by this player's reveal response.
+const revealedCards = computed(() => {
+  const info = me.value?.info || {}
+  switch (me.value?.role) {
+    case 'werewolf':
+      return info.peek ? [{ role: info.peek, label: '查验的中央牌' }] : []
+    case 'seer':
+      return (info.peeked || []).map((role, i) => ({
+        role,
+        label: info.center_picks?.length ? `中央第 ${info.center_picks[i] + 1} 张` : `${info.target} 的初始身份`,
+      }))
+    case 'robber':
+      return info.new_role ? [{ role: info.new_role, label: '交换当时获得的身份' }] : []
+    case 'insomniac':
+      return info.final_role ? [{ role: info.final_role, label: '你的最终身份' }] : []
+    default:
+      return []
+  }
+})
 
 // After a refresh/rejoin the local selection is lost; re-highlight the caller's
 // own vote from the server. Only hydrate once we actually voted (vote_target
@@ -156,7 +177,7 @@ async function vote() {
       </header>
 
       <div class="night-identity">
-        <span class="night-role-icon" aria-hidden="true">{{ roleIcon(me.role) }}</span>
+        <RoleCard :role="me.role" eager class="night-role-art" />
         <div>
           <span class="night-label">你的初始身份</span>
           <h2>{{ roleName(me.role) }}</h2>
@@ -166,9 +187,11 @@ async function vote() {
       <div class="night-observation">
         <span class="night-label">夜间信息</span>
         <p>{{ describe() }}</p>
-        <div v-if="me.role === 'insomniac' && me.info?.final_role" class="night-final-role">
-          <span>你的最终身份</span>
-          <strong>{{ roleIcon(me.info.final_role) }} {{ roleName(me.info.final_role) }}</strong>
+        <div v-if="revealedCards.length" class="revealed-cards">
+          <figure v-for="(card, index) in revealedCards" :key="index">
+            <figcaption>{{ card.label }}</figcaption>
+            <RoleCard :role="card.role" eager />
+          </figure>
         </div>
       </div>
 
@@ -199,9 +222,10 @@ async function vote() {
       <details class="discussion-board">
         <summary>本局身份牌 <span>查看配置</span></summary>
         <div class="board-chips">
-          <span v-for="role in boardChips" :key="role" class="board-chip">
-            {{ roleIcon(role) }} {{ roleName(role) }} ×{{ me.board[role] }}
-          </span>
+          <div v-for="role in boardChips" :key="role" class="board-chip">
+            <RoleCard :role="role" />
+            <span>{{ roleName(role) }} ×{{ me.board[role] }}</span>
+          </div>
         </div>
       </details>
     </section>
@@ -215,15 +239,17 @@ async function vote() {
       </div>
       <div v-if="showRole" id="private-information">
         <div class="night-identity">
-          <span class="night-role-icon" aria-hidden="true">{{ roleIcon(me.role) }}</span>
+          <RoleCard :role="me.role" eager class="night-role-art" />
           <div><span class="night-label">你的初始身份</span><h2>{{ roleName(me.role) }}</h2></div>
         </div>
         <div class="night-observation">
           <p>{{ describe() }}</p>
-          <div v-if="me.role === 'insomniac' && me.info?.final_role" class="night-final-role">
-            <span>你的最终身份</span>
-            <strong>{{ roleIcon(me.info.final_role) }} {{ roleName(me.info.final_role) }}</strong>
-          </div>
+          <div v-if="revealedCards.length" class="revealed-cards">
+          <figure v-for="(card, index) in revealedCards" :key="index">
+            <figcaption>{{ card.label }}</figcaption>
+            <RoleCard :role="card.role" eager />
+          </figure>
+        </div>
         </div>
       </div>
       <p v-else class="private-hidden">信息已收起，需要时可随时回看。</p>
@@ -287,17 +313,8 @@ async function vote() {
 .night-eyebrow { color: var(--accent); font-size: 0.7rem; letter-spacing: 0.16em; }
 .night-heading h1 { margin: 12px 0 8px; font-size: clamp(1.25rem, 5vw, 1.55rem); font-weight: 700; }
 .night-heading p { margin: 0; color: var(--text-dim); font-size: 0.85rem; }
-.night-identity { display: flex; align-items: center; gap: 16px; margin: 26px 0 20px; }
-.night-role-icon {
-  display: grid;
-  place-items: center;
-  flex: 0 0 66px;
-  height: 66px;
-  border: 1px solid rgba(229, 189, 84, 0.22);
-  border-radius: 18px;
-  background: rgba(229, 189, 84, 0.06);
-  font-size: 2.3rem;
-}
+.night-identity { display: flex; flex-direction: column; align-items: stretch; gap: 16px; margin: 26px 0 20px; }
+.night-role-art { width: 100%; }
 .night-label { display: block; color: var(--text-dim); font-size: 0.72rem; letter-spacing: 0.06em; }
 .night-identity h2 { margin: 5px 0 0; font-size: 1.3rem; }
 .night-observation {
@@ -308,9 +325,9 @@ async function vote() {
   background: rgba(5, 12, 23, 0.35);
 }
 .night-observation p { margin: 10px 0 0; font-size: 1rem; line-height: 1.85; overflow-wrap: anywhere; }
-.night-final-role { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
-.night-final-role > span { color: var(--text-dim); font-size: 0.78rem; }
-.night-final-role strong { color: var(--accent-hover); font-size: 1.05rem; }
+.revealed-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-top: 16px; }
+.revealed-cards figure { min-width: 0; margin: 0; }
+.revealed-cards figcaption { margin-bottom: 8px; font-size: 0.75rem; line-height: 1.6; color: var(--accent-hover); overflow-wrap: anywhere; }
 .night-countdown { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 24px; }
 .night-clock { position: relative; flex: 0 0 64px; height: 64px; }
 .night-clock svg { width: 100%; height: 100%; transform: rotate(-90deg); }
@@ -345,14 +362,14 @@ async function vote() {
 .discussion-board { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
 .discussion-board summary { cursor: pointer; color: var(--text-dim); font-size: 0.78rem; }
 .discussion-board summary span { float: right; font-size: 0.7rem; color: var(--accent); }
-.board-chips { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 12px; }
-.board-chip { padding: 5px 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); font-size: 0.72rem; }
+.board-chips { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding-top: 12px; }
+.board-chip { text-align: center; padding: 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); font-size: 0.72rem; }
+.board-chip > span { display: block; margin-top: 6px; }
 .discussion-private, .discussion-vote { padding: 22px; }
 .section-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .section-heading h2 { margin: 5px 0 0; font-size: 1.1rem; }
 .toggle-role { flex-shrink: 0; margin: 0; padding: 8px 12px; border-radius: 999px; color: var(--accent); border-color: rgba(229, 189, 84, 0.25); background: rgba(229, 189, 84, 0.06); font-size: 0.75rem; }
 .discussion-private .night-identity { margin: 20px 0 16px; gap: 12px; }
-.discussion-private .night-role-icon { flex-basis: 50px; height: 50px; font-size: 1.8rem; border-radius: 14px; }
 .discussion-private .night-identity h2 { font-size: 1.1rem; }
 .discussion-private .night-observation p { margin: 0; font-size: 0.9rem; }
 .private-hidden { margin: 16px 0 0; color: var(--text-dim); font-size: 0.8rem; }

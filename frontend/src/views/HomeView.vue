@@ -1,3 +1,7 @@
+<script setup>
+import RoleCard from '../components/RoleCard.vue'
+</script>
+
 <template>
   <div>
     <details class="container foldable">
@@ -18,13 +22,13 @@
           <p class="rules-note">阵营由最终身份决定，换牌可能让玩家改变阵营。</p>
           <p>夜间能力按下列顺序生效：狼人、爪牙、预言家、强盗、捣蛋鬼、失眠者。村民没有夜间能力。</p>
           <dl class="role-rules">
-            <div><dt>狼人</dt><dd>知道其他狼人玩家是谁。如果只有一名狼人玩家，他是「独狼」，可查看一张中央牌。</dd></div>
-            <div><dt>爪牙</dt><dd>知道狼人玩家是谁；狼人不会因此知道谁是爪牙。</dd></div>
-            <div><dt>预言家</dt><dd>查看一名其他玩家的<strong>初始身份（换牌前）</strong>，或查看两张中央牌的牌面。</dd></div>
-            <div><dt>强盗</dt><dd>与一名其他玩家交换身份牌，并查看自己刚换到的牌。</dd></div>
-            <div><dt>捣蛋鬼</dt><dd>在强盗之后，交换另外两名玩家的牌，不能换自己，也不能查看被换的牌。</dd></div>
-            <div><dt>失眠者</dt><dd>在所有换牌结束后，查看自己的最终身份。</dd></div>
-            <div><dt>村民</dt><dd>没有夜间能力，靠讨论与推理判断身份。</dd></div>
+            <div><dt><RoleCard role="werewolf" /><span>狼人</span></dt><dd>知道其他狼人玩家是谁。如果只有一名狼人玩家，他是「独狼」，可查看一张中央牌。</dd></div>
+            <div><dt><RoleCard role="minion" /><span>爪牙</span></dt><dd>知道狼人玩家是谁；狼人不会因此知道谁是爪牙。</dd></div>
+            <div><dt><RoleCard role="seer" /><span>预言家</span></dt><dd>查看一名其他玩家的<strong>初始身份（换牌前）</strong>，或查看两张中央牌的牌面。</dd></div>
+            <div><dt><RoleCard role="robber" /><span>强盗</span></dt><dd>与一名其他玩家交换身份牌，并查看自己刚换到的牌。</dd></div>
+            <div><dt><RoleCard role="troublemaker" /><span>捣蛋鬼</span></dt><dd>在强盗之后，交换另外两名玩家的牌，不能换自己，也不能查看被换的牌。</dd></div>
+            <div><dt><RoleCard role="insomniac" /><span>失眠者</span></dt><dd>在所有换牌结束后，查看自己的最终身份。</dd></div>
+            <div><dt><RoleCard role="villager" /><span>村民</span></dt><dd>没有夜间能力，靠讨论与推理判断身份。</dd></div>
           </dl>
           <p class="rules-note">有查牌或换牌能力的角色必须选择目标，不能跳过。只有能力允许查看的牌和身份信息才可获知。</p>
         </section>
@@ -173,7 +177,7 @@
 .rule-principle { padding: 12px 8px; border: 1px solid rgba(229, 189, 84, 0.3); border-radius: 10px; background: rgba(229, 189, 84, 0.06); text-align: center; color: var(--accent); font-size: 0.85rem; font-weight: 700; line-height: 1.7; }
 .team-label { margin: 16px 0 8px; color: var(--accent); font-size: 0.75rem; font-weight: 700; }
 .role-rules, .win-rules { margin: 0; }
-.role-rules > div { display: grid; grid-template-columns: 3.5em minmax(0, 1fr); gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+.role-rules > div { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
 .role-rules > div:last-child { border-bottom: 0; }
 .rules-content .role-rules dd { margin: 0; }
 .rules-content dt { font-size: 0.8rem; font-weight: 600; line-height: 1.7; }
@@ -249,7 +253,8 @@ h3 { margin: 6px 0; font-size: 0.8rem; }
 .foldable[open] > summary { border-bottom: 1px solid var(--border); }
 .rule-block:first-child { margin-top: 18px; padding-top: 0; border-top: 0; }
 .rule-block h2 { font-size: 0.95rem; color: var(--accent-hover); }
-.role-rules > div { padding: 12px 0; gap: 14px; }
+.role-rules > div { padding: 14px 0; gap: 14px; grid-template-columns: minmax(0, 1fr); align-items: center; }
+.role-rules dt span { display: block; margin-top: 6px; text-align: center; }
 .role-rules dt { color: var(--text); }
 .faction-summary { display: grid; gap: 12px; padding: 14px; }
 .faction-summary p { margin: 0; }

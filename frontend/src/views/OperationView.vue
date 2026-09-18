@@ -3,14 +3,15 @@ import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { post } from '../api'
 import { creds } from '../store'
 import { useRoomState } from '../useRoomState'
-import { roleName, roleIcon, errorText } from '../gameConfig'
+import { roleName, errorText } from '../gameConfig'
 import { avatarUrl } from '../avatar'
 import { sortPlayers } from '../playerOrder'
+import RoleCard from '../components/RoleCard.vue'
 
 
 const { state, error: pollError, applyState } = useRoomState(null, { reveal: '/showinfo' })
 const sel = reactive({ a: '', b: '', center: -1, picks: [] })  // a/b: players; center: lone-wolf; picks: seer center (1-2, ordered)
-const mode = ref('player')  // seer toggle: 'player' | 'center'
+const mode = ref('center')  // seer toggle: 'player' | 'center'
 const coverPick = ref(null)
 const confirmed = ref(false)
 const err = ref('')
@@ -165,7 +166,7 @@ watch(state, (s) => {
     hydrated = true
   } else if (role.value === 'seer' && c.type === 'seer') {
     if (Array.isArray(c.center_picks)) { mode.value = 'center'; sel.picks = c.center_picks.slice(0, 2) }
-    else if (c.target) sel.a = c.target
+    else if (c.target) { mode.value = 'player'; sel.a = c.target }
     hydrated = true
   } else if (role.value === 'robber' && c.type === 'robber' && c.target) {
     sel.a = c.target; hydrated = true
@@ -217,7 +218,7 @@ async function submit() {
          其他玩家的操作一律保密，绝不展示谁已完成/未完成。 -->
     <div v-if="role" class="container ops-identity">
       <div class="ops-role">
-        <span class="ops-role-icon" aria-hidden="true">{{ roleIcon(role) }}</span>
+        <RoleCard :role="role" eager class="ops-role-art" />
         <div><span class="ops-label">你的初始身份</span><h2>{{ roleName(role) }}</h2></div>
       </div>
       <p class="ops-hint">
@@ -312,8 +313,8 @@ async function submit() {
 .ops-clock > span { display: block; color: var(--text-dim); font-size: 0.68rem; margin-bottom: 4px; }
 .ops-clock strong { display: block; min-width: 6ch; color: var(--accent-hover); font-size: 1.5rem; font-variant-numeric: tabular-nums; font-weight: 600; }
 .ops-identity, .ops-panel { padding: 22px; }
-.ops-role { display: flex; align-items: center; gap: 14px; }
-.ops-role-icon { display: grid; place-items: center; width: 60px; height: 60px; flex-shrink: 0; border: 1px solid rgba(229, 189, 84, 0.22); border-radius: 16px; background: rgba(229, 189, 84, 0.06); font-size: 2rem; }
+.ops-role { display: flex; flex-direction: column; align-items: stretch; gap: 14px; }
+.ops-role-art { width: 100%; }
 .ops-label { font-size: 0.72rem; color: var(--text-dim); }
 .ops-role h2 { margin: 5px 0 0; font-size: 1.25rem; }
 .ops-hint { margin: 16px 0 0; font-size: 0.8rem; color: var(--text-dim); line-height: 1.75; }

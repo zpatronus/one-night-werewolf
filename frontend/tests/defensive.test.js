@@ -29,6 +29,7 @@ function load(file, overrides = {}) {
     '../useRoomState': { useRoomState: () => ({ state, error: ref(null), poll: async () => ({ ok: true, phase: 'reveal' }), applyState: s => { state.value = s; applied.push(s) } }) },
     '../gameConfig': { roleName: x => x, roleIcon: () => '', errorText: x => x, localBoardForCreation, sortPlayers: (_, x) => x, ROLE_ORDER: ['werewolf','seer','robber','troublemaker','villager'], boardTemplate: () => ({ villager: 6 }) },
     '../components/ConfirmDialog.vue': {},
+    '../components/RoleCard.vue': {},
     '../avatar': { avatarUrl() {}, getMyAvatar() {} },
     '../playerOrder': { sortPlayers: (_, x) => x },
     ...overrides,
@@ -98,7 +99,8 @@ test('night action can retry after failure; seer needs exactly two centers', asy
     '../api': { post: async () => ++calls === 1 ? { ok: false, error: 'network_error' } : { ok: true, phase: 'op' } },
   })
   state.value = { role: 'seer', requires_action: true }
-  c.mode.value = 'center'; c.sel.picks = [0]
+  assert.equal(c.mode.value, 'center')
+  c.sel.picks = [0]
   assert.equal(c.completed(), false)
   c.sel.picks = [0, 2]
   assert.equal(c.completed(), true)

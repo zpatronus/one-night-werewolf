@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node tests/defensive.test.js"
+    "test": "node --test tests/*.test.js"
   },
   "dependencies": {
     "pinia": "^4.0.3",
