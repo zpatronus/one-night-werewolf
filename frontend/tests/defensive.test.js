@@ -20,7 +20,7 @@ function load(file, overrides = {}) {
   const applied = []
   const modules = {
     vue: { ref, computed, reactive, watch: (source, callback, options) => { watchers.push(callback); return watch(source, callback, options) }, onMounted: f => mounted.push(f), onUnmounted: f => unmounted.push(f) },
-    'vue-router': { useRouter: () => ({ push() {}, currentRoute: ref({ path: '/ops' }) }) },
+    'vue-router': { useRoute: () => ({ query: {} }), useRouter: () => ({ push() {}, currentRoute: ref({ path: '/ops' }) }) },
     '../random': random,
     './AvatarField.vue': {},
     '../result': { calculateResult },
@@ -55,14 +55,14 @@ test('invitation room is consumed once and the next room survives refresh', asyn
     'vue-router': { useRoute: () => route, useRouter: () => ({ replace: location => { route.query = location.query } }) },
   }
   try {
-    const first = load('views/JoinRoomView.vue', overrides)
+    const first = load('views/RoomEntryView.vue', overrides)
     first.mounted.forEach(fn => fn())
     await nextTick()
     assert.equal(first.instance.roomid.value, 'ABC12')
     assert.deepEqual(route.query, { source: 'invite' })
     first.instance.roomid.value = nextRoomId(first.instance.roomid.value)
     await nextTick()
-    const refreshed = load('views/JoinRoomView.vue', overrides)
+    const refreshed = load('views/RoomEntryView.vue', overrides)
     refreshed.mounted.forEach(fn => fn())
     await nextTick()
     assert.equal(refreshed.instance.roomid.value, 'ABC13')
@@ -317,66 +317,52 @@ function nextRoomHarness(post) {
   return { ...component, routes, auth }
 }
 
-test('creating an existing next room joins it with the same credentials', async () => {
-  const calls = []
-  const { instance: c, routes, auth } = nextRoomHarness(async (path, body) => {
-    calls.push([path, body])
-    return path === 'create_room' ? { ok: false, error: 'roomid_taken' } : { ok: true, phase: 'waiting', avatar: 'moon' }
-  })
-  await c.enterNext(true)
-  assert.deepEqual(calls.map(x => x[0]), ['create_room', 'join_room'])
-  assert.equal(calls[1][1].roomid, 'A')
-  assert.equal(calls[1][1].userpsw, '1234')
-  assert.deepEqual(routes, ['/waitingroom'])
-  assert.equal(auth[0].avatar, 'moon')
+test('next game uses one request and routes by the returned phase', async () => {
+  for (const [phase, route] of Object.entries({ waiting: '/waitingroom', op: '/ops', reveal: '/discussion', result: '/result' })) {
+    const calls = []
+    const { instance: c, routes, auth } = nextRoomHarness(async (path, body) => {
+      calls.push([path, body])
+      return { ok: true, phase, avatar: 'moon' }
+    })
+    await c.enterNext()
+    assert.equal(calls.length, 1)
+    assert.equal(calls[0][0], 'create_or_join_room')
+    assert.equal(calls[0][1].roomid, 'A')
+    assert.equal(calls[0][1].userpsw, '1234')
+    assert.deepEqual(routes, [route])
+    assert.equal(auth[0].avatar, 'moon')
+  }
 })
 
-test('auto join retries missing rooms and cancellation ignores in-flight success', async (t) => {
-  t.mock.timers.enable({ apis: ['setTimeout'] })
-  let calls = 0, resolve
-  const { instance: c, routes, auth } = nextRoomHarness(async () => {
+test('next game allows retries after errors', async () => {
+  for (const error of ['network_error', 'room_full', 'wrong_password', 'room_started']) {
+    let calls = 0
+    const { instance: c, routes } = nextRoomHarness(async () => ++calls === 1
+      ? { ok: false, error } : { ok: true, phase: 'waiting' })
+    await c.enterNext()
+    assert.equal(c.nextMessage.value, error)
+    assert.equal(c.nextBusy.value, false)
+    await c.enterNext()
+    assert.equal(c.nextMessage.value, '')
+    assert.deepEqual(routes, ['/waitingroom'])
+  }
+})
+
+test('next game deduplicates clicks and ignores responses after unmount', async () => {
+  let resolve, calls = 0
+  const { instance: c, routes, auth, unmounted } = nextRoomHarness(() => {
     calls++
-    if (calls === 1) return { ok: false, error: 'room_not_found' }
     return new Promise(r => { resolve = r })
   })
+  const pending = c.enterNext()
   await c.enterNext()
-  assert.equal(c.autoJoin.value, true)
-  assert.match(c.nextMessage.value, /等待房主/)
-  t.mock.timers.tick(2000)
-  assert.equal(calls, 2)
-  c.cancelAutoJoin()
+  assert.equal(calls, 1)
+  unmounted.forEach(f => f())
   resolve({ ok: true, phase: 'waiting' })
-  await Promise.resolve(); await Promise.resolve()
-  assert.equal(c.autoJoin.value, false)
+  await pending
   assert.deepEqual(routes, [])
   assert.deepEqual(auth, [])
-  t.mock.timers.tick(10000)
-  assert.equal(calls, 2)
 })
-
-test('auto join succeeds after creation and stops on permanent errors or unmount', async (t) => {
-  t.mock.timers.enable({ apis: ['setTimeout'] })
-  for (const outcome of [{ ok: true, phase: 'waiting' }, { ok: false, error: 'room_full' }, { ok: false, error: 'wrong_password' }, { ok: false, error: 'room_started' }]) {
-    let calls = 0
-    const { instance: c, routes, unmounted } = nextRoomHarness(async () => ++calls === 1 ? { ok: false, error: 'room_not_found' } : outcome)
-    await c.enterNext()
-    t.mock.timers.tick(2000)
-    await Promise.resolve(); await Promise.resolve()
-    assert.equal(c.autoJoin.value, false)
-    assert.deepEqual(routes, outcome.ok ? ['/waitingroom'] : [])
-    if (!outcome.ok) assert.equal(c.nextMessage.value, outcome.error)
-    unmounted.forEach(f => f())
-    t.mock.timers.tick(10000)
-    assert.equal(calls, 2)
-  }
-  let calls = 0
-  const { instance: c, unmounted } = nextRoomHarness(async () => { calls++; return { ok: false, error: 'room_not_found' } })
-  await c.enterNext()
-  unmounted.forEach(f => f())
-  t.mock.timers.tick(10000)
-  assert.equal(calls, 1)
-})
-
 
 test('both create entry points send the saved template in the creation request', async () => {
   const board = { werewolf: 1, seer: 1, villager: 4 }
@@ -384,16 +370,16 @@ test('both create entry points send the saved template in the creation request',
   localStorage.setItem('roomId', 'New')
   localStorage.setItem('userId', 'A')
   localStorage.setItem('userPsw', '1234')
-  for (const file of ['CreateRoomView', 'ResultView']) {
+  for (const file of ['RoomEntryView', 'ResultView']) {
     const calls = []
     const { instance: c } = load(`views/${file}.vue`, {
       '../api': { post: async (path, body) => { calls.push([path, body]); return { ok: true } } },
       '../store': { creds: () => ({ roomid: 'Old', userid: 'A', userpsw: '1234' }), setAuth() {} },
     })
-    if (file === 'CreateRoomView') await c.submit()
-    else await c.enterNext(true)
+    if (file === 'RoomEntryView') await c.submit()
+    else await c.enterNext()
     assert.equal(calls.length, 1)
-    assert.equal(calls[0][0], 'create_room')
+    assert.equal(calls[0][0], 'create_or_join_room')
     assert.deepEqual(calls[0][1].board, board)
   }
 })

@@ -53,6 +53,16 @@ with tempfile.TemporaryDirectory() as tmp:
         auth={'roomid':name,'userid':'X','userpsw':'pw'}
         results=race([(views.create_room,auth),(views.create_room,auth)])
         assert sum(x['ok'] for x in results)==1 and any(x.get('error')=='roomid_taken' for x in results), results
+        for same_user in (False, True):
+            name=f'U{int(same_user)}{i}'
+            auth={'roomid':name,'userid':'X','userpsw':'pw'}
+            results=race([(views.create_or_join_room,auth),
+                (views.create_or_join_room,{**auth,'userid':'X' if same_user else 'Y'})])
+            r=Room.objects.get(roomid=name)
+            assert all(x['ok'] for x in results), results
+            assert r.players.count()==(1 if same_user else 2), results
+            assert r.owner.userid in ('X', 'Y'), results
+            assert sum(x['is_owner'] for x in results)==(2 if same_user else 1), results
         name=f'F{i}'
         r=Room.objects.create(roomid=name)
         for j in range(9): Player.objects.create(room=r,userid=f'P{j}',userpsw='pw')
@@ -60,4 +70,4 @@ with tempfile.TemporaryDirectory() as tmp:
         results=race([(views.join_room,auth),(views.join_room,{**auth,'userid':'Y'})])
         assert r.players.count()==10 and sum(x['ok'] for x in results)==1, results
         assert any(x.get('error')=='room_full' for x in results), results
-    print('80 concurrent scenarios passed: join/start, duplicate joins, duplicate creates, capacity.')
+    print('120 concurrent scenarios passed: join/start, duplicate joins, duplicate creates, create-or-join, capacity.')

@@ -303,3 +303,40 @@ class GameChecks(TestCase):
         self.assertEqual(response['error'], 'roomid_taken')
         self.room.refresh_from_db()
         self.assertEqual(self.room.board, original)
+
+    def test_create_or_join_assigns_first_owner_and_preserves_board(self):
+        board = {'werewolf': 1, 'seer': 1, 'villager': 4}
+        first = self.call(views.create_or_join_room, roomid='Next', board=board)
+        second = self.call(views.create_or_join_room, roomid='Next', userid='B', board={'villager': 6})
+        self.assertTrue(first['ok'])
+        self.assertTrue(first['is_owner'])
+        self.assertEqual(first['phase'], 'waiting')
+        self.assertTrue(second['ok'])
+        self.assertFalse(second['is_owner'])
+        room = Room.objects.get(roomid='Next')
+        self.assertEqual(room.owner.userid, 'A')
+        self.assertEqual(room.board, board)
+        self.assertEqual(room.players.count(), 2)
+        self.assertTrue(self.call(views.create_or_join_room, roomid='Next')['is_owner'])
+        self.assertEqual(room.players.count(), 2)
+
+    def test_create_or_join_enforces_existing_room_rules(self):
+        self.assertEqual(self.call(views.create_or_join_room)['phase'], 'op')
+        self.assertEqual(self.call(views.create_or_join_room, userpsw='bad')['error'], 'wrong_password')
+        self.assertEqual(self.call(views.create_or_join_room, userid='D')['error'], 'room_started')
+        self.room.phase = 'waiting'
+        self.room.save()
+        for i in range(7):
+            Player.objects.create(room=self.room, userid=f'P{i}', userpsw='pw')
+        self.assertEqual(self.call(views.create_or_join_room, userid='D')['error'], 'room_full')
+        self.assertTrue(self.call(views.create_or_join_room)['ok'])
+
+    def test_create_or_join_validates_request_and_defaults_board(self):
+        self.assertEqual(self.call(views.create_or_join_room, roomid='!')['error'], 'bad_request')
+        response = views.create_or_join_room(self.factory.get('/'))
+        self.assertEqual(json.loads(response.content)['error'], 'method_not_allowed')
+        response = self.client.post('/api/create_or_join_room/', data=json.dumps({
+            'roomid': 'New', 'userid': 'A', 'userpsw': 'pw', 'board': []
+        }), content_type='application/json')
+        self.assertTrue(response.json()['ok'])
+        self.assertEqual(Room.objects.get(roomid='New').board, game.board_template())

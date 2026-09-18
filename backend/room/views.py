@@ -245,6 +245,16 @@ def create_room(request):
         return _err(e.code)
 
 
+def create_or_join_room(request):
+    # Creation commits the room and its owner together. A competing creator
+    # loses the unique-roomid race and joins the committed room instead.
+    response = create_room(request)
+    result = json.loads(response.content)
+    if result.get("ok") or result.get("error") == "roomid_taken":
+        return join_room(request)
+    return response
+
+
 def join_room(request):
     try:
         body = _body(request)

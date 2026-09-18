@@ -13,52 +13,22 @@ import { sortPlayers } from '../playerOrder'
 const router = useRouter()
 const nextId = nextRoomId(creds().roomid)
 const nextBusy = ref(false)
-const autoJoin = ref(false)
 const nextMessage = ref('')
 const phaseRoute = { waiting: '/waitingroom', op: '/ops', reveal: '/discussion', result: '/result' }
-let nextTimer = null
-let nextRevision = 0
+let active = true
+onUnmounted(() => { active = false })
 
-function cancelAutoJoin() {
-  nextRevision++
-  clearTimeout(nextTimer)
-  autoJoin.value = false
-  nextBusy.value = false
-  nextMessage.value = ''
-}
-onUnmounted(cancelAutoJoin)
-
-async function enterNext(create = false) {
-  if (nextBusy.value || autoJoin.value) return
-  const revision = ++nextRevision
+async function enterNext() {
+  if (nextBusy.value) return
   const identity = { ...creds(), roomid: nextId, avatar: getMyAvatar() }
   nextBusy.value = true
   nextMessage.value = ''
-  async function attempt() {
-    let res = await post(create ? 'create_room' : 'join_room',
-      create ? { ...identity, board: localBoardForCreation() } : identity)
-    if (revision !== nextRevision) return
-    if (create && !res.ok && res.error === 'roomid_taken') {
-      res = await post('join_room', identity)
-      if (revision !== nextRevision) return
-    }
-    nextBusy.value = false
-    if (res.ok) {
-      autoJoin.value = false
-      setAuth({ ...identity, avatar: res.avatar })
-      router.push(phaseRoute[res.phase] || '/waitingroom')
-    } else if (!create && ['room_not_found', 'network_error'].includes(res.error)) {
-      autoJoin.value = true
-      nextMessage.value = res.error === 'room_not_found'
-        ? '等待房主创建房间中，届时会自动加入。'
-        : '网络连接失败，正在重试自动加入…'
-      nextTimer = setTimeout(attempt, 2000)
-    } else {
-      autoJoin.value = false
-      nextMessage.value = errorText(res.error)
-    }
-  }
-  await attempt()
+  const res = await post('create_or_join_room', { ...identity, board: localBoardForCreation() })
+  if (!active) return
+  nextBusy.value = false
+  if (!res.ok) { nextMessage.value = errorText(res.error); return }
+  setAuth({ ...identity, avatar: res.avatar })
+  router.push(phaseRoute[res.phase] || '/waitingroom')
 }
 
 const data = ref(null)
@@ -172,18 +142,13 @@ const voteChart = computed(() => {
         </div>
       </div>
       <div class="next-room-actions">
-        <button class="btn-primary" :disabled="nextBusy || autoJoin" @click="enterNext(true)">
-          <span aria-hidden="true" class="next-action-icon">＋</span>
-          新建下一个房间
-        </button>
-        <button v-if="autoJoin" class="next-cancel" @click="cancelAutoJoin">取消自动加入</button>
-        <button v-else :disabled="nextBusy" @click="enterNext(false)">
-          加入下一个房间
+        <button class="btn-primary" :disabled="nextBusy" @click="enterNext">
+          {{ nextBusy ? '进入中…' : '创建或加入下一局' }}
           <span aria-hidden="true" class="next-action-icon">→</span>
         </button>
       </div>
-      <div v-if="nextBusy || nextMessage" class="next-room-status" :class="{ 'is-waiting': autoJoin || nextBusy }" role="status" aria-live="polite">
-        <span v-if="autoJoin || nextBusy" class="next-status-dot" aria-hidden="true"></span>
+      <div v-if="nextBusy || nextMessage" class="next-room-status" :class="{ 'is-waiting': nextBusy }" role="status" aria-live="polite">
+        <span v-if="nextBusy" class="next-status-dot" aria-hidden="true"></span>
         <span>{{ nextBusy ? '正在进入下一个房间…' : nextMessage }}</span>
       </div>
     </section>
@@ -340,7 +305,7 @@ const voteChart = computed(() => {
   font-size: 1.15rem;
   letter-spacing: 1px;
 }
-.next-room-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.next-room-actions { display: grid; grid-template-columns: 1fr; gap: 10px; }
 .next-room-actions button {
   display: flex;
   justify-content: center;
@@ -354,7 +319,6 @@ const voteChart = computed(() => {
   line-height: 1.4;
 }
 .next-action-icon { color: inherit; font-size: 1.05rem; line-height: 1; }
-.next-room-actions .next-cancel { color: var(--text-dim); background: transparent; }
 .next-room-actions button:focus-visible { outline: 2px solid var(--accent-hover); outline-offset: 3px; }
 .next-room-status {
   display: flex;

@@ -10,8 +10,7 @@
 
     <nav class="nav">
       <router-link class="nav-link" to="/">主页</router-link>
-      <router-link class="nav-link" to="/createroom">创建房间</router-link>
-      <router-link class="nav-link" to="/joinroom">加入房间</router-link>
+      <router-link class="nav-link" to="/room">创建或加入房间</router-link>
     </nav>
 
     <router-view />

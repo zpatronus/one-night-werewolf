@@ -4,6 +4,7 @@ from . import views
 
 urlpatterns = [
     path("csrf/", views.csrf, name="csrf"),
+    path("create_or_join_room/", views.create_or_join_room, name="create_or_join_room"),
     path("create_room/", views.create_room, name="create_room"),
     path("join_room/", views.join_room, name="join_room"),
     path("set_board/", views.set_board, name="set_board"),

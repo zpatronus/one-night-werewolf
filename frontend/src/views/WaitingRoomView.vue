@@ -49,10 +49,10 @@ const isHost = () => state.value?.is_owner
 watch(board, (b) => saveBoardLS(b), { deep: true, immediate: true, flush: 'sync' })
 
 // Invite link that drops a friend straight onto the join form with this room
-// already filled in (JoinRoomView reads the `room` query param on mount).
+// already filled in (RoomEntryView reads the `room` query param on mount).
 const copied = ref(false)
 function inviteUrl() {
-  return `${window.location.origin}${base}joinroom?room=${encodeURIComponent(creds().roomid)}`
+  return `${window.location.origin}${base}room?room=${encodeURIComponent(creds().roomid)}`
 }
 async function copyInvite() {
   const url = inviteUrl()

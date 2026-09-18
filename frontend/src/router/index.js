@@ -3,8 +3,9 @@ import { base } from '../store'
 
 const routes = [
   { path: '/', name: 'home', component: () => import('../views/HomeView.vue') },
-  { path: '/createroom', name: 'create', component: () => import('../views/CreateRoomView.vue') },
-  { path: '/joinroom', name: 'join', component: () => import('../views/JoinRoomView.vue') },
+  { path: '/room', name: 'room', component: () => import('../views/RoomEntryView.vue') },
+  { path: '/createroom', name: 'create', redirect: to => ({ path: '/room', query: to.query }) },
+  { path: '/joinroom', name: 'join', redirect: to => ({ path: '/room', query: to.query }) },
   { path: '/waitingroom', name: 'waiting', component: () => import('../views/WaitingRoomView.vue') },
   { path: '/ops', name: 'ops', component: () => import('../views/OperationView.vue') },
   { path: '/showinfo', name: 'showinfo', component: () => import('../views/ShowInfoView.vue'),

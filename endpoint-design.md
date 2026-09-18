@@ -46,6 +46,16 @@
 
 公开，返回 `{ok: true, csrf_token}`，供后续请求的 `X-CSRFToken` 使用。
 
+### POST `/api/create_or_join_room/`
+
+Accepts `roomid`, `userid`, `userpsw`, optional `avatar` and `board`.
+Creates a missing room atomically with the first creator as owner; otherwise joins
+or authenticates the existing player. Concurrent creators converge on one room.
+The board template is applied only on creation. Existing rooms retain their owner
+and board. Password, capacity, and started-room restrictions match `join_room`.
+Returns the same current-phase payload and avatar as `join_room`.
+Used by the unified room tab and the results page’s next-game button.
+
 ### POST `/api/create_room/`
 
 请求 `{roomid, userid, userpsw, avatar}`。同一事务创建房间、房主玩家并关联所有者。

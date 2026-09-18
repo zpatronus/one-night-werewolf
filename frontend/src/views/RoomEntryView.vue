@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { post } from '../api'
 import { setAuth } from '../store'
-import { errorText } from '../gameConfig'
+import { errorText, localBoardForCreation } from '../gameConfig'
 import { getMyAvatar } from '../avatar'
 import { prefillIdentity, prefillRoomId, nextRoomId, randomRoomId, randomPsw } from '../random'
 import AvatarField from './AvatarField.vue'
@@ -11,7 +11,7 @@ import AvatarField from './AvatarField.vue'
 const router = useRouter()
 const route = useRoute()
 const PHASE_ROUTE = { waiting: '/waitingroom', op: '/ops', reveal: '/discussion', result: '/result' }
-// Identical prefill to CreateRoomView: restore stored creds verbatim; only an
+// Restore stored credentials verbatim; only an
 // absent slot gets a fresh random value, so a returning player is never given
 // a new identity. Values persist only on a successful join (see submit).
 const roomid = ref(prefillRoomId())
@@ -31,7 +31,7 @@ watch([roomid, userid, userpsw], ([r, u, p]) => {
   localStorage.setItem('userPsw', p)
 })
 
-// An invite link (`/joinroom?room=ABC12`) drops the visitor straight onto this
+// An invite link (`/room?room=ABC12`) drops the visitor straight onto this
 // room: override whatever was pre-filled with the shared room id. The watch above
 // persists it to localStorage so it sticks on refresh.
 onMounted(() => {
@@ -58,8 +58,9 @@ async function submit() {
   if (!canSave.value || busy.value) return
   busy.value = true
   err.value = ''
-  const res = await post('join_room', {
+  const res = await post('create_or_join_room', {
     roomid: roomid.value, userid: userid.value, userpsw: userpsw.value, avatar: avatar.value,
+    board: localBoardForCreation(),
   })
   busy.value = false
   if (!res.ok) { err.value = errorText(res.error); return }
@@ -73,7 +74,7 @@ async function submit() {
 
 <template>
   <form class="container entry-form" @submit.prevent="submit">
-    <header class="entry-heading"><h1>加入房间</h1></header>
+    <header class="entry-heading"><h1>创建或加入房间</h1></header>
     <div class="entry-group">
       <label for="room-id">房间号</label>
       <div class="field-row room-field">
@@ -81,7 +82,7 @@ async function submit() {
         <button type="button" @click="roomid = randomRoomId()">随机</button>
         <button type="button" @click="roomid = nextRoomId(roomid)">下一个</button>
       </div>
-      <p id="room-hint" class="field-hint">1–6 位字母或数字，区分大小写</p>
+      <p id="room-hint" class="field-hint">1–6 位字母或数字，区分大小写。房间不存在时自动创建，首位创建者为房主。</p>
     </div>
     <div class="entry-divider"></div>
     <div class="entry-group">
@@ -100,7 +101,7 @@ async function submit() {
     <div class="entry-avatar"><AvatarField v-model="avatar" /></div>
     <p class="entry-note">密码会明文保存在本机。请使用随机密码，勿使用常用密码。</p>
     <button type="submit" class="btn-primary btn-block entry-submit" :disabled="!canSave || busy">
-      {{ busy ? '加入中…' : '加入房间' }}
+      {{ busy ? '进入中…' : '创建或加入房间' }}
     </button>
     <p v-if="err" class="error" role="alert">{{ err }}</p>
   </form>
