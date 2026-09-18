@@ -362,7 +362,7 @@ async function vote() {
 .discussion-board { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
 .discussion-board summary { cursor: pointer; color: var(--text-dim); font-size: 0.78rem; }
 .discussion-board summary span { float: right; font-size: 0.7rem; color: var(--accent); }
-.board-chips { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding-top: 12px; }
+.board-chips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding-top: 12px; }
 .board-chip { text-align: center; padding: 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); font-size: 0.72rem; }
 .board-chip > span { display: block; margin-top: 6px; }
 .discussion-private, .discussion-vote { padding: 22px; }
