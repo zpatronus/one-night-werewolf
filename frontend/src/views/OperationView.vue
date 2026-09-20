@@ -14,6 +14,7 @@ const sel = reactive({ a: '', b: '', center: -1, picks: [] })  // a/b: players; 
 const mode = ref('center')  // seer toggle: 'player' | 'center'
 const coverPick = ref(null)
 const confirmed = ref(false)
+const showPrivate = ref(false)
 const err = ref('')
 const busy = ref(false)
 const now = ref(Date.now())
@@ -214,6 +215,16 @@ async function submit() {
       </div>
     </header>
 
+    <section class="container ops-disclosure">
+      <button type="button" class="privacy-disclosure" :aria-expanded="showPrivate" aria-controls="ops-private" @click="showPrivate = !showPrivate">
+        <span class="privacy-disclosure-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="11" rx="3" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /><path d="M12 14v3" /></svg>
+        </span>
+        <span class="privacy-disclosure-copy"><strong>身份与夜间操作</strong><span>{{ showPrivate ? '查看完毕后可收起' : '已隐藏 · 仅供自己查看' }}</span></span>
+        <span class="privacy-disclosure-action">{{ showPrivate ? '收起' : '展开' }}<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg></span>
+      </button>
+    </section>
+    <div v-if="showPrivate" id="ops-private">
     <!-- 操作面板：只显示"我"已提交到服务器的 ops（由服务器 response 渲染），
          其他玩家的操作一律保密，绝不展示谁已完成/未完成。 -->
     <div v-if="role" class="container ops-identity">
@@ -303,10 +314,13 @@ async function submit() {
       </button>
       <p v-if="err || pollError" class="error">{{ err || errorText(pollError) }}</p>
     </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
+.ops-disclosure { padding: 0; overflow: hidden; }
+.ops-disclosure .privacy-disclosure { border: 0; border-radius: inherit; }
 .ops-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 20px 22px; border-color: rgba(229, 189, 84, 0.25); background: radial-gradient(ellipse at 0 0, rgba(229, 189, 84, 0.08), transparent 65%), var(--surface); }
 .ops-header h1 { margin: 0; font-size: 1.4rem; }
 .ops-clock { text-align: right; }

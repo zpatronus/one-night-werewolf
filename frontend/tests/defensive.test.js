@@ -169,7 +169,7 @@ test('polls are deduplicated and old responses cannot override mutation or unmou
   assert.equal(c.state.value.phase, 'reveal')
 })
 
-test('board edits stay private through polling and only explicit submit saves them', async () => {
+test('board edits automatically save before starting', async () => {
   const calls = []
   const { instance: c, state } = load('views/WaitingRoomView.vue', {
     '../api': { post: async (path, body) => {
@@ -183,8 +183,8 @@ test('board edits stay private through polling and only explicit submit saves th
   assert.deepEqual(c.currentBoard(), { villager: 6 })
   await nextTick()
   assert.deepEqual(c.board.value, { villager: 5, werewolf: 1 })
-  await c.start(); assert.equal(calls.length, 0)
-  await c.saveBoard()
+  assert.equal(calls.length, 1)
+  assert.equal(c.dirty.value, false)
   assert.deepEqual(c.currentBoard(), { villager: 5, werewolf: 1 })
   await c.start()
   assert.deepEqual(calls.map(([path]) => path), ['set_board', 'start_game'])
@@ -476,4 +476,47 @@ test('leaving the information page cancels countdown and ignores late informatio
     assert.deepEqual(routes, [])
     if (late) assert.equal(c.me.value, null)
   }
+})
+
+
+test('automatic board saving queues changes made while a request is pending', async () => {
+  const requests = []
+  const { instance: c, state } = load('views/WaitingRoomView.vue', {
+    '../api': { post: (path, body) => new Promise(resolve => requests.push({ body, resolve })) },
+  })
+  state.value = { phase: 'waiting', is_owner: true, userCount: 3, board: { villager: 6 } }
+  c.adjust('villager', -1)
+  await nextTick()
+  c.adjust('werewolf', 1)
+  await nextTick()
+  assert.equal(requests.length, 1)
+  assert.equal(c.canStart(), false)
+  requests[0].resolve({ ok: true, board: requests[0].body.board })
+  await nextTick()
+  assert.equal(requests.length, 2)
+  requests[1].resolve({ ok: true, board: requests[1].body.board })
+  await nextTick()
+  assert.equal(c.dirty.value, false)
+  assert.equal(c.canStart(), true)
+})
+
+test('waiting avatar uses server state and only changes after acknowledgement', async () => {
+  let resolve
+  const { instance: c, state } = load('views/WaitingRoomView.vue', {
+    '../api': { post: () => new Promise(r => { resolve = r }) },
+  })
+  state.value = { phase: 'waiting', users: [{ userid: 'A', avatar: 'stored' }] }
+  const pending = c.saveAvatar('selected')
+  assert.equal(c.myAvatar.value, 'stored')
+  resolve({ ok: true, users: [{ userid: 'A', avatar: 'selected' }] })
+  await pending
+  assert.equal(c.myAvatar.value, 'selected')
+  state.value = { ...state.value, phase: 'op' }
+  await c.saveAvatar('other')
+  assert.equal(c.myAvatar.value, 'selected')
+})
+
+test('ops and showinfo private information starts hidden', () => {
+  assert.equal(load('views/OperationView.vue').instance.showPrivate.value, false)
+  assert.equal(load('views/DiscussionView.vue', { props: { infoOnly: true } }).instance.showRole.value, false)
 })

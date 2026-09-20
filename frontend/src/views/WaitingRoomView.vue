@@ -5,8 +5,9 @@ import { post } from '../api'
 import { base, creds } from '../store'
 import { useRoomState } from '../useRoomState'
 import { errorText, boardTemplate, roleName, roleIcon, ROLE_ORDER } from '../gameConfig'
-import { avatarUrl, getMyAvatar } from '../avatar'
+import { avatarUrl } from '../avatar'
 import { sortPlayers } from '../playerOrder'
+import AvatarField from './AvatarField.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const router = useRouter()
@@ -16,6 +17,8 @@ const board = ref(loadSavedBoard() ?? boardTemplate())   // {role_code: count}; 
 const err = ref('')
 const starting = ref(false)
 const saving = ref(false)
+const avatarSaving = ref(false)
+const myAvatar = computed(() => state.value?.users?.find(u => u.userid === creds().userid)?.avatar)
 const confirmOpen = ref(false)    // start-confirmation dialog
 
 // The host's board draft persists across refreshes (same pattern as roomId /
@@ -73,16 +76,26 @@ async function copyInvite() {
 
 const users = computed(() => sortPlayers(creds().roomid, state.value?.users || []))
 
-// Avatar for a given player id: the backend returns the authoritative file;
-// fall back to our own avatar if a "me" entry happens to be missing.
+// In-room identity always comes from the database snapshot.
 function avatarOf(userid) {
-  const entry = state.value?.users?.find((u) => u.userid === userid)
-  const file = entry?.avatar || (userid === creds().userid ? getMyAvatar() : '')
-  return avatarUrl(file)
+  return avatarUrl(state.value?.users?.find(u => u.userid === userid)?.avatar)
+}
+
+async function saveAvatar(avatar) {
+  if (avatarSaving.value || starting.value || state.value?.phase !== 'waiting') return
+  avatarSaving.value = true
+  err.value = ''
+  try {
+    const res = await post('set_avatar', { ...creds(), avatar })
+    if (!res.ok) { err.value = errorText(res.error); return }
+    if (state.value?.phase === 'waiting') {
+      applyState({ ...state.value, users: res.users, ok: true })
+    }
+  } finally { avatarSaving.value = false }
 }
 
 function canStart() {
-  return n() >= MIN && n() <= MAX && !dirty.value && !saving.value
+  return n() >= MIN && n() <= MAX && !dirty.value && !saving.value && !avatarSaving.value
     && Object.values(currentBoard()).reduce((a, b) => a + b, 0) === n() + 3
 }
 
@@ -100,7 +113,7 @@ function atMax(role) {
 }
 
 function adjust(role, delta) {
-  if (starting.value || saving.value) return
+  if (starting.value) return
   const b = { ...board.value }
   const next = Math.max(0, (b[role] || 0) + delta)
   if (delta > 0 && next > maxFor(role)) return   // enforce the hard cap
@@ -109,16 +122,23 @@ function adjust(role, delta) {
 }
 
 async function saveBoard() {
-  if (!isHost() || saving.value || starting.value) return
+  if (!isHost() || saving.value || starting.value || state.value?.phase !== 'waiting') return
   saving.value = true
   err.value = ''
   try {
-    const res = await post('set_board', { ...creds(), board: { ...board.value } })
-    if (!res.ok) { err.value = errorText(res.error); return }
-    // Invalidate any poll started before this save so it cannot undo the update.
-    applyState({ ...state.value, board: res.board, ok: true })
+    do {
+      const submitted = { ...board.value }
+      const res = await post('set_board', { ...creds(), board: submitted })
+      if (!res.ok) { err.value = errorText(res.error); return }
+      // Invalidate any poll started before this save so it cannot undo the update.
+      if (state.value?.phase !== 'waiting') return
+      applyState({ ...state.value, board: res.board, ok: true })
+      if (ROLE_ORDER.every(role => (board.value[role] || 0) === (submitted[role] || 0))) break
+    } while (true)
   } finally { saving.value = false }
 }
+
+watch(board, () => { saveBoard() }, { deep: true })
 
 async function start() {
   if (starting.value || !canStart()) return
@@ -178,6 +198,7 @@ watch(liveBoard, (b, prev) => {
           <span class="player-tag">{{ state?.host === u.userid ? '房主' : u.userid === creds().userid ? '你' : '' }}</span>
         </div>
       </div>
+      <AvatarField v-if="myAvatar && state?.phase === 'waiting'" :model-value="myAvatar" :disabled="avatarSaving || starting" :persist="false" @update:model-value="saveAvatar" />
     </section>
 
     <section class="container lobby-board">
@@ -199,9 +220,9 @@ watch(liveBoard, (b, prev) => {
           <div v-for="role in ROLE_ORDER" :key="role" class="board-row">
             <span>{{ roleIcon(role) }} {{ roleName(role) }}</span>
             <span class="board-stepper">
-              <button :aria-label="`减少${roleName(role)}`" @click="adjust(role, -1)" :disabled="saving || starting || (board[role] || 0) <= 0">−</button>
+              <button :aria-label="`减少${roleName(role)}`" @click="adjust(role, -1)" :disabled="starting || (board[role] || 0) <= 0">−</button>
               <span class="board-count">{{ board[role] || 0 }}</span>
-              <button :aria-label="`增加${roleName(role)}`" @click="adjust(role, 1)" :disabled="saving || starting || atMax(role)">+</button>
+              <button :aria-label="`增加${roleName(role)}`" @click="adjust(role, 1)" :disabled="starting || atMax(role)">+</button>
             </span>
           </div>
           <p class="board-sum" :class="boardValid ? '' : 'error'">
@@ -212,10 +233,7 @@ watch(liveBoard, (b, prev) => {
               ? `板子不完整：还差 ${cardsLeft()} 张未分配`
               : `板子超量：超出 ${-cardsLeft()} 张` }}
           </p>
-          <button class="btn-primary btn-block" :disabled="saving || starting || !dirty" @click="saveBoard">
-            {{ saving ? '提交中…' : '提交板子' }}
-          </button>
-          <p v-if="dirty" class="muted">有未提交的修改。</p>
+          <p class="muted" role="status">{{ saving ? '自动保存中…' : dirty ? '修改尚未保存，请调整板子重试。' : '已自动保存' }}</p>
         </div>
       </template>
       <p v-else class="lobby-label">由房主配置</p>

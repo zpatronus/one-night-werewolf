@@ -5,7 +5,7 @@ import { post } from '../api'
 import { creds } from '../store'
 import { useRoomState } from '../useRoomState'
 import { roleName, roleIcon, errorText, ROLE_ORDER } from '../gameConfig'
-import { avatarUrl, getMyAvatar } from '../avatar'
+import { avatarUrl } from '../avatar'
 import { sortPlayers } from '../playerOrder'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import RoleCard from '../components/RoleCard.vue'
@@ -65,7 +65,7 @@ const boardChips = computed(() =>
   ROLE_ORDER.filter((r) => (me.value?.board?.[r] || 0) > 0))
 const meCard = computed(() => ({
   ...(me.value?.me || {}),
-  avatar: avatarUrl(me.value?.me?.avatar || getMyAvatar()),
+  avatar: avatarUrl(me.value?.me?.avatar),
 }))
 
 // Only illustrate cards explicitly returned by this player's reveal response.
@@ -176,6 +176,14 @@ async function vote() {
         <p>请安静阅读，管理好表情。</p>
       </header>
 
+      <button type="button" class="privacy-disclosure" :aria-expanded="showRole" aria-controls="night-private" @click="showRole = !showRole">
+        <span class="privacy-disclosure-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="11" rx="3" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /><path d="M12 14v3" /></svg>
+        </span>
+        <span class="privacy-disclosure-copy"><strong>我的夜间信息</strong><span>{{ showRole ? '查看完毕后可收起' : '已隐藏 · 仅供自己查看' }}</span></span>
+        <span class="privacy-disclosure-action">{{ showRole ? '收起' : '展开' }}<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg></span>
+      </button>
+      <div v-if="showRole" id="night-private">
       <div class="night-identity">
         <RoleCard :roomid="creds().roomid" :userid="creds().userid" :role="me.role" eager class="night-role-art" />
         <div>
@@ -193,6 +201,8 @@ async function vote() {
             <RoleCard :roomid="creds().roomid" :userid="creds().userid" :role="card.role" eager />
           </figure>
         </div>
+      </div>
+
       </div>
 
       <footer class="night-countdown">
@@ -309,6 +319,7 @@ async function vote() {
   border-color: rgba(229, 189, 84, 0.28);
   background: radial-gradient(ellipse at 100% 0, rgba(229, 189, 84, 0.09), transparent 55%), var(--surface);
 }
+.night-info > .privacy-disclosure { margin-top: 24px; }
 .night-heading { text-align: center; }
 .night-eyebrow { color: var(--accent); font-size: 0.7rem; letter-spacing: 0.16em; }
 .night-heading h1 { margin: 12px 0 8px; font-size: clamp(1.25rem, 5vw, 1.55rem); font-weight: 700; }

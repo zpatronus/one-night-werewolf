@@ -289,6 +289,24 @@ def join_room(request):
         return _err(e.code)
 
 
+def set_avatar(request):
+    try:
+        body, room, player = _auth(request)
+        avatar = body.get("avatar")
+        if not isinstance(avatar, str) or avatar not in AVATARS:
+            raise ApiError("bad_request")
+        with transaction.atomic():
+            _lock_room(room)
+            if room.phase != "waiting":
+                raise ApiError("not_waiting")
+            player.avatar = avatar
+            player.save(update_fields=["avatar"])
+            payload = _waiting_payload(room, player)
+        return JsonResponse(payload)
+    except ApiError as e:
+        return _err(e.code)
+
+
 def set_board(request):
     try:
         _, room, player = _auth(request)

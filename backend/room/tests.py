@@ -340,3 +340,22 @@ class GameChecks(TestCase):
         }), content_type='application/json')
         self.assertTrue(response.json()['ok'])
         self.assertEqual(Room.objects.get(roomid='New').board, game.board_template())
+
+
+    def test_avatar_changes_only_in_waiting_and_remains_authoritative(self):
+        self.room.phase = 'waiting'
+        self.room.save()
+        avatar = views.AVATARS[1]
+        other = views.AVATARS[2]
+        result = self.call(views.set_avatar, self.players[1], avatar=avatar)
+        self.assertTrue(result['ok'])
+        self.assertEqual(next(p['avatar'] for p in result['users'] if p['userid'] == 'B'), avatar)
+        self.assertEqual(self.call(views.set_avatar, self.players[1], avatar=[])['error'], 'bad_request')
+        self.assertEqual(self.call(views.set_avatar, self.players[1], avatar=other, userpsw='wrong')['error'], 'bad_credentials')
+        for phase in ('op', 'reveal', 'result'):
+            self.room.phase = phase
+            self.room.save()
+            self.assertEqual(self.call(views.set_avatar, self.players[1], avatar=other)['error'], 'not_waiting')
+            self.assertEqual(self.call(views.join_room, self.players[1], avatar=other)['avatar'], avatar)
+            self.players[1].refresh_from_db()
+            self.assertEqual(self.players[1].avatar, avatar)

@@ -2,18 +2,18 @@
 import { computed, ref } from 'vue'
 import { avatarUrl, getMyAvatar, setMyAvatar, AVATARS, randomAvatar } from '../avatar'
 
-const props = defineProps({ modelValue: String })
+const props = defineProps({ modelValue: String, disabled: Boolean, persist: { type: Boolean, default: true } })
 const emit = defineEmits(['update:modelValue'])
 const dialogEl = ref(null)
 const show = ref(false)
 
 const value = computed({
   get: () => props.modelValue || getMyAvatar(),
-  set: (v) => emit('update:modelValue', setMyAvatar(v)),
+  set: (v) => emit('update:modelValue', props.persist ? setMyAvatar(v) : v),
 })
 
 function openPicker() {
-  if (show.value) return
+  if (show.value || props.disabled) return
   show.value = true
   // Native <dialog> modal — floats above the page in the top layer, centered,
   // with a dimming backdrop. (Bare `open` instead renders it inline in flow.)
@@ -25,10 +25,12 @@ function closePicker() {
   dialogEl.value?.close()
 }
 function chooseAvatar(file) {
+  if (props.disabled) return
   value.value = file
   closePicker()
 }
 function randomize() {
+  if (props.disabled) return
   value.value = randomAvatar()
 }
 function dismissBackdrop(event) {
@@ -46,10 +48,10 @@ function dismissBackdrop(event) {
   <div>
     <div class="subtitle avatar-title">选择头像</div>
     <div class="avatar-picker-row">
-      <button type="button" class="avatar-preview-wrap" title="点击选择头像" @click="openPicker">
+      <button type="button" :disabled="disabled" class="avatar-preview-wrap" title="点击选择头像" @click="openPicker">
         <img class="avatar-preview" :src="avatarUrl(value)" alt="avatar" />
       </button>
-      <button type="button" @click="randomize">随机头像</button>
+      <button type="button" :disabled="disabled" @click="randomize">随机头像</button>
     </div>
     <dialog
       ref="dialogEl"
@@ -59,13 +61,13 @@ function dismissBackdrop(event) {
     >
       <div class="avatar-dialog-header">
         <h2 id="avatar-dialog-title">选择头像</h2>
-        <button type="button" aria-label="关闭" @click="closePicker">×</button>
+        <button type="button" :disabled="disabled" aria-label="关闭" @click="closePicker">×</button>
       </div>
       <div class="avatar-grid">
         <button
           v-for="file in AVATARS"
           :key="file"
-          type="button"
+          type="button" :disabled="disabled"
           class="avatar-thumb"
           :class="{ 'avatar-selected': file === value }"
           :aria-pressed="file === value"

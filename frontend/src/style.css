@@ -704,3 +704,32 @@ body { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.18) var(--b
   .entry-form { padding: 22px 14px 18px; }
   .entry-form .field-row button { padding: 10px 8px; }
 }
+
+
+/* Shared private-information disclosure for the night screens. */
+.privacy-disclosure {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 18px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(229, 189, 84, 0.035);
+  color: var(--text);
+}
+.privacy-disclosure:hover { background: rgba(229, 189, 84, 0.07); border-color: var(--border-strong); }
+.privacy-disclosure-icon { display: grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px; background: rgba(229, 189, 84, 0.07); color: var(--accent); }
+.privacy-disclosure-icon svg { width: 20px; height: 20px; }
+.privacy-disclosure-copy { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.privacy-disclosure-copy strong { font-size: 0.85rem; font-weight: 600; }
+.privacy-disclosure-copy > span { color: var(--text-dim); font-size: 0.7rem; font-weight: 400; }
+.privacy-disclosure-action { display: flex; align-items: center; gap: 4px; margin-left: auto; flex-shrink: 0; color: var(--accent); font-size: 0.75rem; }
+.privacy-disclosure-action svg { width: 18px; height: 18px; }
+.privacy-disclosure[aria-expanded="true"] .privacy-disclosure-action svg { transform: rotate(180deg); }
+@media (max-width: 360px) {
+  .privacy-disclosure { padding: 14px 12px; gap: 9px; }
+  .privacy-disclosure-icon { width: 30px; height: 30px; }
+}
