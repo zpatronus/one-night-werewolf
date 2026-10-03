@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useRoomState } from '../useRoomState'
 import { creds } from '../store'
 import { post } from '../api'
-import { errorText } from '../gameConfig'
+import { errorText, roleName } from '../gameConfig'
 import { avatarUrl } from '../avatar'
 import { sortPlayers } from '../playerOrder'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -15,6 +15,31 @@ const busy = ref(false)
 const err = ref('')
 const confirmOpen = ref(false)
 const users = computed(() => sortPlayers(creds().roomid, (state.value?.users || []).filter(p => p.userid !== creds().userid)))
+const showNight = ref(true)
+const voteTotals = computed(() => {
+  const tally = new Map((state.value?.users || []).map(p => [p.userid, 0]))
+  for (const vote of state.value?.votes || []) {
+    if (vote.target) tally.set(vote.target, (tally.get(vote.target) || 0) + 1)
+  }
+  return [...tally].map(([userid, count]) => ({ userid, count }))
+    .sort((a, b) => b.count - a.count || a.userid.localeCompare(b.userid))
+})
+const highestVotes = computed(() => voteTotals.value[0]?.count || 0)
+const nightText = computed(() => {
+  const night = state.value?.night
+  const info = night?.info || {}
+  const centerNumber = Number(String(info.target || '').split('_')[1]) + 1
+  switch (night?.role) {
+    case 'werewolf': return info.peek ? `你是独狼，查看了中央第 ${centerNumber} 张牌：${roleName(info.peek)}。` : `夜晚开始时，你的狼人同伴：${(info.teammates || []).join('、')}。`
+    case 'minion': return info.teammates?.length ? `夜晚开始时，狼人玩家：${info.teammates.join('、')}。` : '夜晚开始时，场上没有狼人玩家。'
+    case 'seer': return info.center_picks ? `你查看了${info.center_picks.map((i, k) => `中央第 ${i + 1} 张：${roleName(info.peeked[k])}`).join('；')}。` : `你查看了 ${info.target} 的初始身份：${roleName(info.peeked?.[0])}。`
+    case 'robber': return `你与 ${info.target} 交换了身份，交换当时获得的是${roleName(info.new_role)}。`
+    case 'troublemaker': return `你交换了 ${info.target} 与 ${info.target2} 的身份，没有查看牌面。`
+    case 'drunk': return `你与中央第 ${centerNumber} 张牌交换了身份，没有查看新身份。`
+    case 'insomniac': return `夜间行动结束后，你确认自己的最终身份是${roleName(info.final_role)}。`
+    default: return '你没有夜间行动。'
+  }
+})
 const done = computed(() => state.value?.shot_target !== null && state.value?.shot_target !== undefined)
 async function shoot() {
   if (busy.value || done.value || !state.value?.can_shoot || !target.value) return
@@ -78,6 +103,33 @@ async function shoot() {
         <p v-else>无需操作，行动完成后自动进入结算。</p>
       </div>
     </section>
+    <section class="container hunter-information">
+      <button type="button" class="night-heading" :aria-expanded="showNight" aria-controls="shoot-night-info" @click="showNight = !showNight">
+        <span><strong>你的夜间信息</strong><small>仅供自己查看</small></span><span>{{ showNight ? '收起' : '展开' }}</span>
+      </button>
+      <div v-if="showNight" id="shoot-night-info" class="night-body">
+        <span class="info-label">初始身份</span>
+        <strong class="night-role">{{ roleName(state.night?.role) }}</strong>
+        <p>{{ nightText }}</p>
+      </div>
+    </section>
+
+    <section class="container hunter-information">
+      <div class="action-heading"><h2>投票结果</h2><span>全部投票已锁定</span></div>
+      <p class="action-copy">{{ state.executed.length > 1 ? '最高票平票，以下玩家共同被处决：' : '最高票玩家被处决：' }}<strong>{{ state.executed.join('、') }}</strong> · {{ highestVotes }} 票</p>
+      <div class="tally-list">
+        <div v-for="row in voteTotals" :key="row.userid" class="tally-row" :class="{ leading: state.executed.includes(row.userid) }">
+          <span>{{ row.userid }}</span>
+          <div class="tally-track"><span :style="{ width: `${highestVotes ? row.count / highestVotes * 100 : 0}%` }"></span></div>
+          <strong>{{ row.count }} 票</strong>
+          <small>{{ state.executed.includes(row.userid) ? '最高票' : '' }}</small>
+        </div>
+      </div>
+      <h3 class="vote-detail-title">谁投了谁</h3>
+      <div class="vote-records">
+        <div v-for="vote in state.votes" :key="vote.userid" class="vote-record"><strong>{{ vote.userid }}</strong><span aria-hidden="true">→</span><span :class="{ muted: !vote.target }">{{ vote.target || '弃权' }}</span></div>
+      </div>
+    </section>
     <p v-if="err || error" class="container error" role="alert">{{ err || errorText(error) }}</p>
     <ConfirmDialog v-if="confirmOpen" :confirm-disabled="busy" title="确认最后一枪"
       confirm-text="开枪"
@@ -88,6 +140,28 @@ async function shoot() {
 </template>
 
 <style scoped>
+.hunter-information { padding: 22px; }
+.night-heading { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0; margin: 0; border: 0; background: none; text-align: left; }
+.night-heading > span:first-child { display: flex; flex-direction: column; gap: 6px; }
+.night-heading strong { font-size: 1rem; }
+.night-heading small, .night-heading > span:last-child, .info-label { color: var(--text-dim); font-size: .7rem; }
+.night-body { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+.night-role { display: block; margin: 6px 0 10px; color: var(--accent-hover); font-size: 1rem; }
+.night-body p { margin: 0; color: var(--text-dim); font-size: .8rem; line-height: 1.9; }
+.tally-list { display: grid; gap: 12px; }
+.tally-row { display: grid; grid-template-columns: 7ch 1fr 3.5ch 3ch; align-items: center; gap: 8px; font-size: .75rem; }
+.tally-row > span { overflow-wrap: anywhere; }
+.tally-row strong { white-space: nowrap; font-size: .7rem; }
+.tally-row small { color: var(--accent); font-size: .6rem; }
+.tally-track { height: 7px; border-radius: 8px; background: var(--surface-2); overflow: hidden; }
+.tally-track span { display: block; height: 100%; border-radius: inherit; background: var(--text-faint); }
+.leading .tally-track span { background: var(--accent); }
+.vote-detail-title { margin: 22px 0 12px; padding-top: 18px; border-top: 1px solid var(--border); font-size: .8rem; }
+.vote-records { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.vote-record { display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 8px; background: var(--surface-2); font-size: .72rem; }
+.vote-record strong, .vote-record > span:last-child { overflow-wrap: anywhere; }
+.vote-record > span:nth-child(2) { color: var(--text-faint); }
+
 .hunter-hero { padding: 22px; text-align: center; border-color: rgba(229, 189, 84, .28); background: radial-gradient(ellipse at top, rgba(229, 189, 84, .09), transparent 65%), var(--surface); }
 .hunter-eyebrow { color: var(--accent); font-size: .7rem; letter-spacing: .1em; }
 .hunter-art { margin: 18px 0 22px; box-shadow: var(--shadow-sm); }

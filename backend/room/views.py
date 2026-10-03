@@ -397,6 +397,8 @@ def _room_status(room, player):
             "ok": True, "phase": "shoot",
             "can_shoot": any(p.id == player.id for p in hunters),
             "shot_target": player.shot_target,
+            "night": {"role": player.role, "info": _settled_info(room, player)},
+            "votes": [{"userid": p.userid, "target": p.vote_target} for p in room.players.order_by("id")],
             "executed": game.voted_executions(room.players.all()),
             "hunters": [p.userid for p in hunters],
             "users": [{"userid": p.userid, "avatar": p.avatar} for p in room.players.all()],
