@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useRoomState } from '../useRoomState'
 import { creds } from '../store'
 import { post } from '../api'
-import { errorText, roleName } from '../gameConfig'
+import { errorText, roleName, roleIcon } from '../gameConfig'
 import { avatarUrl } from '../avatar'
 import { sortPlayers } from '../playerOrder'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -23,6 +23,17 @@ const voteTotals = computed(() => {
   }
   return [...tally].map(([userid, count]) => ({ userid, count }))
     .sort((a, b) => b.count - a.count || a.userid.localeCompare(b.userid))
+})
+const avatarByUser = computed(() => Object.fromEntries((state.value?.users || []).map(p => [p.userid, p.avatar])))
+const orderedVotes = computed(() => sortPlayers(creds().roomid, state.value?.votes || []))
+const abstentions = computed(() => (state.value?.votes || []).filter(v => !v.target).length)
+const knownCards = computed(() => {
+  const { role, info = {} } = state.value?.night || {}
+  if (role === 'werewolf' && info.peek) return [{ role: info.peek, label: '查验的中央牌' }]
+  if (role === 'seer') return (info.peeked || []).map((card, i) => ({ role: card, label: info.center_picks ? `中央第 ${info.center_picks[i] + 1} 张` : `${info.target} 的初始身份` }))
+  if (role === 'robber' && info.new_role) return [{ role: info.new_role, label: '交换当时获得' }]
+  if (role === 'insomniac' && info.final_role) return [{ role: info.final_role, label: '你的最终身份' }]
+  return []
 })
 const highestVotes = computed(() => voteTotals.value[0]?.count || 0)
 const nightText = computed(() => {
@@ -73,6 +84,47 @@ async function shoot() {
       </div>
     </section>
 
+    <section class="container hunter-information">
+      <button type="button" class="night-heading" :aria-expanded="showNight" aria-controls="shoot-night-info" @click="showNight = !showNight">
+        <span><strong>你的夜间信息</strong><small>回顾身份与行动线索</small></span><span>{{ showNight ? '收起' : '展开' }}</span>
+      </button>
+      <div v-if="showNight" id="shoot-night-info" class="night-body">
+        <div class="night-identity">
+          <RoleCard :role="state.night?.role" :roomid="creds().roomid" :userid="creds().userid" class="night-thumbnail" />
+          <div><span class="info-label">你的初始身份</span><strong class="night-role">{{ roleIcon(state.night?.role) }} {{ roleName(state.night?.role) }}</strong><span class="private-badge">仅供自己查看</span></div>
+        </div>
+        <div class="night-clue"><span class="info-label">夜间行动与信息</span><p>{{ nightText }}</p></div>
+        <div v-if="knownCards.length" class="known-cards">
+          <div v-for="(card, i) in knownCards" :key="i" class="known-card"><span>{{ card.label }}</span><strong>{{ roleIcon(card.role) }} {{ roleName(card.role) }}</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="container hunter-information">
+      <div class="action-heading"><h2>投票结果</h2><span>全部投票已锁定</span></div>
+      <div class="vote-outcome">
+        <div class="outcome-heading"><span>{{ state.executed.length > 1 ? '最高票平票 · 共同处决' : '最高票 · 投票处决' }}</span><strong>{{ highestVotes }}<small>票</small></strong></div>
+        <div class="outcome-players"><span v-for="uid in state.executed" :key="uid"><img :src="avatarUrl(avatarByUser[uid])" alt="" />{{ uid }}</span></div>
+      </div>
+      <div class="vote-subheading"><h3>得票分布</h3><span>{{ state.votes?.length || 0 }} 人已投票 · {{ abstentions }} 人弃权</span></div>
+      <div class="tally-list">
+        <div v-for="row in voteTotals" :key="row.userid" class="tally-row" :class="{ leading: state.executed.includes(row.userid) }">
+          <span class="tally-player"><img :src="avatarUrl(avatarByUser[row.userid])" alt="" /><span>{{ row.userid }}</span></span>
+          <div class="tally-track"><span :style="{ width: `${highestVotes ? row.count / highestVotes * 100 : 0}%` }"></span></div>
+          <strong>{{ row.count }} 票</strong>
+          <small>{{ state.executed.includes(row.userid) ? '最高票' : '' }}</small>
+        </div>
+      </div>
+      <h3 class="vote-detail-title">谁投了谁</h3>
+      <div class="vote-records">
+        <div v-for="vote in orderedVotes" :key="vote.userid" class="vote-record" :class="{ 'my-vote': vote.userid === creds().userid }">
+          <span class="record-player"><img :src="avatarUrl(avatarByUser[vote.userid])" alt="" /><strong>{{ vote.userid }}</strong><small v-if="vote.userid === creds().userid">你</small></span>
+          <span class="vote-arrow" aria-label="投票给">→</span>
+          <span class="record-player record-target" :class="{ muted: !vote.target }"><img v-if="vote.target" :src="avatarUrl(avatarByUser[vote.target])" alt="" /><strong>{{ vote.target || '弃权' }}</strong></span>
+        </div>
+      </div>
+    </section>
+
     <section v-if="state.can_shoot && !done" class="container hunter-action">
       <div class="action-heading"><h2>选择开枪目标</h2><span>必须选择一人</span></div>
       <p class="action-copy">被选中的玩家将加入处决名单。请根据讨论与线索作出选择。</p>
@@ -103,33 +155,6 @@ async function shoot() {
         <p v-else>无需操作，行动完成后自动进入结算。</p>
       </div>
     </section>
-    <section class="container hunter-information">
-      <button type="button" class="night-heading" :aria-expanded="showNight" aria-controls="shoot-night-info" @click="showNight = !showNight">
-        <span><strong>你的夜间信息</strong><small>仅供自己查看</small></span><span>{{ showNight ? '收起' : '展开' }}</span>
-      </button>
-      <div v-if="showNight" id="shoot-night-info" class="night-body">
-        <span class="info-label">初始身份</span>
-        <strong class="night-role">{{ roleName(state.night?.role) }}</strong>
-        <p>{{ nightText }}</p>
-      </div>
-    </section>
-
-    <section class="container hunter-information">
-      <div class="action-heading"><h2>投票结果</h2><span>全部投票已锁定</span></div>
-      <p class="action-copy">{{ state.executed.length > 1 ? '最高票平票，以下玩家共同被处决：' : '最高票玩家被处决：' }}<strong>{{ state.executed.join('、') }}</strong> · {{ highestVotes }} 票</p>
-      <div class="tally-list">
-        <div v-for="row in voteTotals" :key="row.userid" class="tally-row" :class="{ leading: state.executed.includes(row.userid) }">
-          <span>{{ row.userid }}</span>
-          <div class="tally-track"><span :style="{ width: `${highestVotes ? row.count / highestVotes * 100 : 0}%` }"></span></div>
-          <strong>{{ row.count }} 票</strong>
-          <small>{{ state.executed.includes(row.userid) ? '最高票' : '' }}</small>
-        </div>
-      </div>
-      <h3 class="vote-detail-title">谁投了谁</h3>
-      <div class="vote-records">
-        <div v-for="vote in state.votes" :key="vote.userid" class="vote-record"><strong>{{ vote.userid }}</strong><span aria-hidden="true">→</span><span :class="{ muted: !vote.target }">{{ vote.target || '弃权' }}</span></div>
-      </div>
-    </section>
     <p v-if="err || error" class="container error" role="alert">{{ err || errorText(error) }}</p>
     <ConfirmDialog v-if="confirmOpen" :confirm-disabled="busy" title="确认最后一枪"
       confirm-text="开枪"
@@ -145,22 +170,49 @@ async function shoot() {
 .night-heading > span:first-child { display: flex; flex-direction: column; gap: 6px; }
 .night-heading strong { font-size: 1rem; }
 .night-heading small, .night-heading > span:last-child, .info-label { color: var(--text-dim); font-size: .7rem; }
-.night-body { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
-.night-role { display: block; margin: 6px 0 10px; color: var(--accent-hover); font-size: 1rem; }
-.night-body p { margin: 0; color: var(--text-dim); font-size: .8rem; line-height: 1.9; }
-.tally-list { display: grid; gap: 12px; }
-.tally-row { display: grid; grid-template-columns: 7ch 1fr 3.5ch 3ch; align-items: center; gap: 8px; font-size: .75rem; }
-.tally-row > span { overflow-wrap: anywhere; }
+.night-body { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); }
+.night-identity { display: flex; align-items: center; gap: 14px; }
+.night-thumbnail { width: 42%; flex-shrink: 0; }
+.night-role { display: block; margin: 6px 0 8px; color: var(--accent-hover); font-size: 1rem; }
+.private-badge { display: inline-block; padding: 4px 7px; border: 1px solid var(--border); border-radius: 5px; color: var(--text-faint); font-size: .6rem; }
+.night-clue { margin-top: 18px; padding: 14px; background: var(--surface-2); border: 1px solid var(--border); border-left: 2px solid var(--accent); border-radius: 4px 10px 10px 4px; }
+.night-body p { margin: 7px 0 0; color: var(--text); font-size: .8rem; line-height: 1.9; }
+.known-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-top: 10px; }
+.known-card { padding: 12px; border: 1px solid rgba(229, 189, 84, .18); border-radius: 10px; background: rgba(229, 189, 84, .04); }
+.known-card span { display: block; color: var(--text-dim); font-size: .65rem; margin-bottom: 7px; }
+.known-card strong { color: var(--accent-hover); font-size: .82rem; }
+.vote-outcome { margin: 18px 0 20px; padding: 15px; border: 1px solid rgba(229, 189, 84, .25); border-radius: 12px; background: linear-gradient(135deg, rgba(229, 189, 84, .08), transparent); }
+.outcome-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.outcome-heading > span { color: var(--accent-hover); font-size: .72rem; }
+.outcome-heading > strong { color: var(--accent-hover); font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+.outcome-heading small { margin-left: 5px; color: var(--text-dim); font-size: .65rem; font-weight: 400; }
+.outcome-players { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.outcome-players > span { display: flex; align-items: center; gap: 7px; padding: 6px 9px 6px 6px; border-radius: 8px; background: var(--surface-2); font-size: .8rem; font-weight: 600; }
+.outcome-players img { width: 26px; height: 26px; border-radius: 50%; }
+.vote-subheading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.vote-subheading h3 { margin: 0; font-size: .8rem; }
+.vote-subheading > span { color: var(--text-faint); font-size: .65rem; }
+.tally-list { display: grid; gap: 13px; }
+.tally-row { display: grid; grid-template-columns: minmax(90px, 1fr) minmax(45px, 1fr) 3.5ch 3ch; align-items: center; gap: 8px; font-size: .75rem; }
+.tally-player { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.tally-player img { width: 25px; height: 25px; border-radius: 50%; flex-shrink: 0; }
+.tally-player > span { overflow-wrap: anywhere; }
 .tally-row strong { white-space: nowrap; font-size: .7rem; }
 .tally-row small { color: var(--accent); font-size: .6rem; }
 .tally-track { height: 7px; border-radius: 8px; background: var(--surface-2); overflow: hidden; }
 .tally-track span { display: block; height: 100%; border-radius: inherit; background: var(--text-faint); }
 .leading .tally-track span { background: var(--accent); }
 .vote-detail-title { margin: 22px 0 12px; padding-top: 18px; border-top: 1px solid var(--border); font-size: .8rem; }
-.vote-records { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.vote-record { display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 8px; background: var(--surface-2); font-size: .72rem; }
-.vote-record strong, .vote-record > span:last-child { overflow-wrap: anywhere; }
-.vote-record > span:nth-child(2) { color: var(--text-faint); }
+.vote-records { display: grid; gap: 7px; }
+.vote-record { display: grid; grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr); align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid transparent; border-radius: 10px; background: var(--surface-2); font-size: .75rem; }
+.my-vote { border-color: rgba(229, 189, 84, .2); }
+.record-player { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.record-player img { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; }
+.record-player strong { overflow-wrap: anywhere; font-weight: 500; }
+.record-player small { color: var(--accent); font-size: .6rem; }
+.record-target { justify-content: flex-end; }
+.record-target.muted strong, .vote-arrow { color: var(--text-faint); }
+.vote-arrow { text-align: center; }
 
 .hunter-hero { padding: 22px; text-align: center; border-color: rgba(229, 189, 84, .28); background: radial-gradient(ellipse at top, rgba(229, 189, 84, .09), transparent 65%), var(--surface); }
 .hunter-eyebrow { color: var(--accent); font-size: .7rem; letter-spacing: .1em; }
@@ -195,5 +247,5 @@ async function shoot() {
 .wait-mark { display: grid; place-items: center; width: 38px; height: 38px; flex-shrink: 0; border: 1px solid rgba(229, 189, 84, .25); border-radius: 50%; color: var(--accent); background: rgba(229, 189, 84, .06); }
 .hunter-wait p { margin: 9px 0 0; color: var(--text-dim); font-size: .78rem; line-height: 1.8; }
 button:focus-visible { outline: 2px solid var(--accent-hover); outline-offset: 3px; }
-@media (max-width: 360px) { .hunter-hero, .hunter-action, .hunter-wait { padding: 18px 14px; } .shot-player { padding: 16px 8px; gap: 6px; } .shot-player img { width: 30px; height: 30px; } .player-copy strong { font-size: .74rem; } .player-copy > span { font-size: .56rem; } }
+@media (max-width: 360px) { .hunter-hero, .hunter-action, .hunter-wait, .hunter-information { padding: 18px 14px; } .shot-player { padding: 16px 8px; gap: 6px; } .shot-player img { width: 30px; height: 30px; } .player-copy strong { font-size: .74rem; } .player-copy > span { font-size: .56rem; } }
 </style>
