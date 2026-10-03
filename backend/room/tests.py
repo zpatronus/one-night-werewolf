@@ -410,4 +410,5 @@ class NewRoleChecks(TestCase):
         for p, role, vote, choice in zip(self.players, ["robber", "hunter", "werewolf"], ["B", "A", "A"], [{"type": "robber", "target": "B"}, {}, {}]):
             p.role, p.vote_target, p.choice = role, vote, choice; p.save()
         self.assertEqual(self.call(views.room_state)["hunters"], ["A"])
-        self.assertEqual(self.call(views.hunter_shot, target="")["phase"], "result")
+        self.assertEqual(self.call(views.hunter_shot, target="")["error"], "bad_target")
+        self.assertEqual(self.call(views.hunter_shot, target="C")["phase"], "result")

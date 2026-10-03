@@ -73,11 +73,11 @@ test('ops countdown uses the server end time and waits for phase transition at z
   const { instance: c, state } = load('views/OperationView.vue')
   c.now.value = 100000
   state.value = { phase: 'op', op_end_time_ms: 147030 }
-  assert.equal(c.countdown.value, '47.03')
+  assert.equal(c.countdown.value, '48s')
   c.now.value = 146020
-  assert.equal(c.countdown.value, '1.01')
+  assert.equal(c.countdown.value, '2s')
   c.now.value = 147029
-  assert.equal(c.countdown.value, '0.01')
+  assert.equal(c.countdown.value, '1s')
   c.now.value = 147030
   assert.equal(c.countdown.value, '跳转中...')
   c.now.value = 150000
