@@ -12,6 +12,7 @@ const routes = [
     beforeEnter: (_to, from) => from.path === '/ops' ? true : '/discussion' },
   { path: '/discussion', name: 'discussion', component: () => import('../views/DiscussionView.vue') },
   { path: '/reveal', redirect: '/discussion' },
+  { path: '/shoot', name: 'shoot', component: () => import('../views/HunterShotView.vue') },
   { path: '/result', name: 'result', component: () => import('../views/ResultView.vue') },
 ]
 

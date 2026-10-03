@@ -148,8 +148,8 @@ def _deadline_ms(room):
 def _advance(room):
     """Trigger the next phase exactly once when its end condition holds.
 
-    op -> reveal only when the deadline passes; reveal -> result
-    when everyone has voted. Only the caller that first observes the end
+    op -> reveal only when the deadline passes; after all votes, eligible
+    hunters shoot before result. Only the caller that first observes the end
     condition wins the conditional UPDATE (SQLite serializes its first write),
     so the resolver runs exactly once.
     """
@@ -183,7 +183,12 @@ def _advance(room):
     if room.phase == "reveal":
         players = list(room.players.all())
         if players and all(p.vote_target is not None for p in players):
-            Room.objects.filter(id=room.id, phase="reveal").update(phase="result")
+            Room.objects.filter(id=room.id, phase="reveal").update(phase="shoot" if game.shooting_hunters(room) else "result")
+            room.refresh_from_db()
+
+    if room.phase == "shoot":
+        if all(p.shot_target is not None for p in game.shooting_hunters(room)):
+            Room.objects.filter(id=room.id, phase="shoot").update(phase="result")
             room.refresh_from_db()
 
 
@@ -386,6 +391,16 @@ def _room_status(room, player):
         return _op_payload(room, player, _deadline_ms(room))
     if room.phase == "reveal":
         return _reveal_payload(room, player)
+    if room.phase == "shoot":
+        hunters = game.shooting_hunters(room)
+        return {
+            "ok": True, "phase": "shoot",
+            "can_shoot": any(p.id == player.id for p in hunters),
+            "shot_target": player.shot_target,
+            "executed": game.voted_executions(room.players.all()),
+            "hunters": [p.userid for p in hunters],
+            "users": [{"userid": p.userid, "avatar": p.avatar} for p in room.players.all()],
+        }
     # result phase: empty; real content comes from /api/result/
     return {"ok": True, "phase": "result"}
 
@@ -429,6 +444,8 @@ def _settled_info(room, player):
         return {"target": target, "new_role": roles[target]}
     if player.role == "troublemaker":
         return {"target": choice["target"], "target2": choice["target2"]}
+    if player.role == "drunk":
+        return {"target": choice["target"]}
     if player.role == "insomniac":
         return {"final_role": game.final_cards(room.players.all())[player.userid]}
     return {}
@@ -504,7 +521,31 @@ def result(request):
                 "role": p.role,
                 "choice": p.choice,
                 "vote_target": p.vote_target,
+                "shot_target": p.shot_target,
             } for p in room.players.order_by("id")],
         })
+    except ApiError as e:
+        return _err(e.code)
+
+
+def hunter_shot(request):
+    try:
+        body, room, player = _auth(request)
+        with transaction.atomic():
+            _lock_room(room)
+            if room.phase != "shoot":
+                raise ApiError("not_in_shoot")
+            if not any(p.id == player.id for p in game.shooting_hunters(room)):
+                raise ApiError("not_hunter")
+            target = body.get("target")
+            if not isinstance(target, str) or target == player.userid:
+                raise ApiError("bad_target")
+            if target != "" and not room.players.filter(userid=target).exists():
+                raise ApiError("bad_target")
+            updated = Player.objects.filter(id=player.id, room__phase="shoot", shot_target__isnull=True).update(shot_target=target)
+            if not updated:
+                raise ApiError("already_shot")
+            _advance(room)
+        return JsonResponse(_room_status(room, player))
     except ApiError as e:
         return _err(e.code)

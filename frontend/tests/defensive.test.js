@@ -30,7 +30,7 @@ function load(file, overrides = {}) {
     '../gameConfig': { roleName: x => x, roleIcon: () => '', errorText: x => x, localBoardForCreation, sortPlayers: (_, x) => x, ROLE_ORDER: ['werewolf','seer','robber','troublemaker','villager'], boardTemplate: () => ({ villager: 6 }) },
     '../components/ConfirmDialog.vue': {},
     '../components/RoleCard.vue': {},
-    '../avatar': { avatarUrl() {}, getMyAvatar() {} },
+    '../avatar': { avatarUrl() {}, getMyAvatar() {}, setMyAvatar() {} },
     '../playerOrder': { sortPlayers: (_, x) => x },
     ...overrides,
   }

@@ -36,6 +36,8 @@ const countdown = computed(() => {
 const role = computed(() => state.value?.role)
 const requiresAction = computed(() => state.value?.requires_action === true)
 const roleHint = computed(() => {
+  if (role.value === 'drunk') return '在捣蛋鬼之后、失眠者之前，与一张中央牌交换身份。你不会得知换到的身份。'
+  if (role.value === 'hunter') return '夜间无需行动。若最终身份为猎人且被投票处决（包括平票），可开枪带走一人；被枪击不会触发开枪。'
   if (requiresAction.value) return '请按提示作出选择，夜间信息与行动结果将在揭晓阶段显示。'
   if (role.value === 'insomniac') return '你无需选择目标，最终身份将在揭晓阶段显示。'
   if (role.value === 'minion') return '你无需选择目标，狼人名单将在揭晓阶段显示。'
@@ -48,7 +50,7 @@ const others = computed(() => users.value.filter((u) => u.userid !== creds().use
 
 const isSeer = () => role.value === 'seer'
 const isSelectPlayers = () => ['robber', 'troublemaker'].includes(role.value)
-const isCenterPicker = () => requiresAction.value && (role.value === 'werewolf' || (role.value === 'seer' && mode.value === 'center'))
+const isCenterPicker = () => requiresAction.value && (['werewolf', 'drunk'].includes(role.value) || (role.value === 'seer' && mode.value === 'center'))
 
 // How many players this operating identity picks (0 = center pickers / none).
 function maxPicks() {
@@ -85,7 +87,7 @@ function pickCenter(i) {
     sel.picks = mostRecent2(sel.picks.slice(), i)
     return
   }
-  if (role.value === 'werewolf') sel.center = sel.center === i ? -1 : i
+  if (['werewolf', 'drunk'].includes(role.value)) sel.center = sel.center === i ? -1 : i
 }
 
 function centerSel(i, isCenterMode) {
@@ -104,7 +106,7 @@ function completed() {
   if (t === 'troublemaker') return !!(sel.a && sel.b && sel.a !== sel.b)
   if (t === 'seer') return mode.value === 'center' ? sel.picks.length === 2 : !!sel.a
   if (t === 'robber') return !!sel.a
-  if (t === 'werewolf') return sel.center >= 0
+  if (['werewolf', 'drunk'].includes(t)) return sel.center >= 0
   return false
 }
 
@@ -124,6 +126,7 @@ function selectionText() {
     }
     return sel.a ? `已选择 ${sel.a}，查看其身份。` : '请选择一位玩家查看身份。'
   }
+  if (t === 'drunk') return sel.center >= 0 ? `已选择：与中央第 ${sel.center + 1} 张牌交换，不查看身份。` : '请选择一张中央牌交换，不查看身份。'
   if (t === 'werewolf') return sel.center >= 0 ? `已选择：中央第 ${sel.center + 1} 张牌。` : '你是独狼，选择一张中央牌查看。'
   return ''
 }
@@ -145,6 +148,8 @@ function submittedOpsText() {
         : c.target || ''
       return `🔍 已提交：窥视 ${picks}。`
     }
+    case 'drunk':
+      return `🍺 已提交：与中央第 ${Number(c.target.split('_')[1]) + 1} 张牌交换，不查看身份。`
     case 'wolf': {
       // target is 0-based ("center_0"), but humans count from 1.
       const i = parseInt(String(c.target || '').split('_')[1], 10)
@@ -171,7 +176,7 @@ watch(state, (s) => {
     hydrated = true
   } else if (role.value === 'robber' && c.type === 'robber' && c.target) {
     sel.a = c.target; hydrated = true
-  } else if (role.value === 'werewolf' && c.type === 'wolf' && typeof c.target === 'string') {
+  } else if (['werewolf', 'drunk'].includes(role.value) && ['wolf', 'drunk'].includes(c.type) && typeof c.target === 'string') {
     const i = parseInt(c.target.split('_')[1], 10)
     if (Number.isInteger(i)) sel.center = i
     hydrated = true
@@ -187,6 +192,7 @@ function buildChoice() {
     if (mode.value === 'center') return { type: 'seer', center_picks: sel.picks.slice() }
     return { type: 'seer', target: sel.a }
   }
+  if (t === 'drunk') return { type: 'drunk', target: `center_${sel.center}` }
   if (t === 'werewolf') return { type: 'wolf', target: `center_${sel.center}` }
   return null
 }
@@ -291,6 +297,7 @@ async function submit() {
         <div class="ops-help">
           <span v-if="role === 'seer'">选择 2 张中央牌窥视（按顺序分别查看）</span>
           <span v-else-if="role === 'werewolf'">你是独狼，选择一张中央牌窥视</span>
+          <span v-else-if="role === 'drunk'">选择一张中央牌交换，不查看新身份</span>
         </div>
         <div class="center-grid">
           <button

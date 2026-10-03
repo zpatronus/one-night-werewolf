@@ -144,6 +144,10 @@ function describe() {
       return `你是强盗。你选择与 ${info.target} 交换身份，交换完成当时看到的牌是 ${peek(info.new_role)}。`
     case 'troublemaker':
       return `你是捣蛋鬼。你选择交换 ${info.target} 与 ${info.target2} 的牌。`
+    case 'drunk':
+      return `你是酒鬼。你与中央第 ${Number(info.target.split('_')[1]) + 1} 张牌交换了身份，但不知道新身份。`
+    case 'hunter':
+      return '你最初是猎人。若最终仍为猎人且被投票处决（包括平票），可开枪带走一人；被枪击不会触发开枪。'
     case 'insomniac':
       return `你是失眠者，你在熬夜中知晓了自己的最终身份。`
     case 'villager':

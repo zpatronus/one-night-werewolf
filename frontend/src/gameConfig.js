@@ -7,6 +7,8 @@ export const ROLE_DISPLAY = {
   seer: { name: '预言家', emoji: '🔮', faction: 'good' },
   robber: { name: '强盗', emoji: '🥷', faction: 'good' },
   troublemaker: { name: '捣蛋鬼', emoji: '🃏', faction: 'good' },
+  drunk: { name: '酒鬼', emoji: '🍺', faction: 'good' },
+  hunter: { name: '猎人', emoji: '🔫', faction: 'good' },
   insomniac: { name: '失眠者', emoji: '🌙', faction: 'good' },
   villager: { name: '村民', emoji: '👤', faction: 'good' },
 }
@@ -15,15 +17,15 @@ export const roleName = (code) => ROLE_DISPLAY[code]?.name || code
 export const roleIcon = (code) => ROLE_DISPLAY[code]?.emoji || '❔'
 
 // Real operable interfaces; only lone wolves peek. Other roles use local cover clicks.
-export const OPERATION_ROLES = ['seer', 'robber', 'troublemaker', 'werewolf']
+export const OPERATION_ROLES = ['seer', 'robber', 'troublemaker', 'drunk', 'werewolf']
 
-// Every room starts with two wolves, two villagers, and one of every other role.
+// The default nine-card draft leaves the optional drunk and hunter at zero.
 export function boardTemplate() {
   return Object.fromEntries(Object.keys(ROLE_DISPLAY).map(role =>
-    [role, ['werewolf', 'villager'].includes(role) ? 2 : 1]))
+    [role, ['werewolf', 'villager'].includes(role) ? 2 : ['drunk', 'hunter'].includes(role) ? 0 : 1]))
 }
 
-export const ROLE_ORDER = ['werewolf', 'seer', 'robber', 'troublemaker', 'insomniac', 'minion', 'villager']
+export const ROLE_ORDER = ['werewolf', 'seer', 'robber', 'troublemaker', 'drunk', 'insomniac', 'hunter', 'minion', 'villager']
 
 // Short English backend codes -> Chinese sentences.
 export const ERROR_MESSAGES = {
@@ -42,6 +44,9 @@ export const ERROR_MESSAGES = {
   not_in_op: '当前不在操作阶段',
   bad_choice: '操作不合法',
   already_voted: '你已经投过票了',
+  not_in_shoot: '当前不在猎人开枪阶段',
+  not_hunter: '你不是被投票处决的猎人',
+  already_shot: '你已经完成开枪选择',
   bad_target: '目标不合法',
   not_in_reveal: '当前不在投票阶段',
   not_done: '投票尚未全部完成',
@@ -72,6 +77,7 @@ export const PHASE_TEXT = {
   waiting: '等待开始',
   op: '行动阶段',
   reveal: '讨论与投票',
+  shoot: '猎人开枪',
   result: '结算',
 }
 

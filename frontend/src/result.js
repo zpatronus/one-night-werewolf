@@ -2,6 +2,7 @@
 // from the original cards, raw choices and raw votes; nothing is persisted here.
 export function calculateResult({ players = [], center = [] } = {}) {
   const cards = new Map(players.map(p => [p.userid, p.role]))
+  const finalCenter = center.slice()
   const ops = []
   const wolves = players.filter(p => p.role === 'werewolf').map(p => p.userid)
   if (wolves.length) ops.push({ type: 'wolf', wolves })
@@ -36,6 +37,13 @@ export function calculateResult({ players = [], center = [] } = {}) {
       a_new: cards.get(a), b_new: cards.get(b) })
   }
   for (const p of players) {
+    if (p.role !== 'drunk') continue
+    const index = Number(p.choice.target.split('_')[1])
+    const before = cards.get(p.userid)
+    cards.set(p.userid, finalCenter[index]); finalCenter[index] = before
+    ops.push({ type: 'drunk', drunk: p.userid, center: index, card: cards.get(p.userid) })
+  }
+  for (const p of players) {
     if (p.role === 'insomniac') ops.push({ type: 'insomniac', insomniac: p.userid, card: cards.get(p.userid) })
   }
 
@@ -46,18 +54,21 @@ export function calculateResult({ players = [], center = [] } = {}) {
   const highest = Math.max(0, ...Object.values(votes))
   const top = Object.keys(votes).filter(uid => votes[uid] === highest)
   const executed = top.length === 1 ? top[0] : null
+  const shots = players.filter(p => top.includes(p.userid) && cards.get(p.userid) === 'hunter' && p.shot_target)
+    .map(p => ({ hunter: p.userid, target: p.shot_target }))
+  const executions = [...new Set([...top, ...shots.map(s => s.target)])]
   const roles = [...cards.values()]
   const noEvil = !roles.some(role => role === 'werewolf' || role === 'minion')
   const enemy = roles.includes('werewolf') ? 'werewolf' : 'minion'
-  const caught = top.some(uid => cards.get(uid) === enemy)
+  const caught = executions.some(uid => cards.get(uid) === enemy)
   const good_win = noEvil ? players.every(p => p.vote_target === '') : caught
   let reason
   if (noEvil) reason = good_win ? 'no_evil_players' : 'no_evil_but_votes'
-  else if (caught && top.length > 1) reason = enemy === 'werewolf' ? 'wolf_in_tie' : 'minion_in_tie'
+  else if (caught && top.some(uid => cards.get(uid) === enemy) && top.length > 1) reason = enemy === 'werewolf' ? 'wolf_in_tie' : 'minion_in_tie'
   else if (caught) reason = enemy === 'werewolf' ? 'wolf_executed' : 'minion_executed_no_wolf'
-  else reason = executed ? 'villager_executed' : 'no_execution'
+  else reason = executions.length ? 'villager_executed' : 'no_execution'
 
-  return { votes, executed, good_win, reason, ops, players: players.map(p => {
+  return { votes, executed, executions, shots, finalCenter, good_win, reason, ops, players: players.map(p => {
     const final_role = cards.get(p.userid)
     const evil = final_role === 'werewolf' || final_role === 'minion'
     return { ...p, final_role, won: good_win ? !evil : evil }

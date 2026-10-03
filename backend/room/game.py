@@ -13,11 +13,11 @@ import random
 
 ROLE_CODES = [
     "werewolf", "minion", "seer", "robber",
-    "troublemaker", "insomniac", "villager",
+    "troublemaker", "drunk", "insomniac", "hunter", "villager",
 ]
 
 # These roles always make a real choice. Only a lone dealt wolf also acts.
-ACTION_ROLES = {"seer", "robber", "troublemaker"}
+ACTION_ROLES = {"seer", "robber", "troublemaker", "drunk"}
 
 MIN_PLAYERS = 3
 MAX_PLAYERS = 10
@@ -38,7 +38,7 @@ def operation_role(player):
 
 def board_template(player_count=None):
     """Every new room starts with the same nine-card draft."""
-    return {role: 2 if role in ("werewolf", "villager") else 1 for role in ROLE_CODES}
+    return {role: 2 if role in ("werewolf", "villager") else 0 if role in ("drunk", "hunter") else 1 for role in ROLE_CODES}
 
 
 def valid_board_shape(board):
@@ -53,8 +53,8 @@ def valid_choice(role, userid, users, choice):
     if not isinstance(choice, dict):
         return False
     kind = choice.get("type")
-    if role == "werewolf":
-        return (kind in ("wolf", "werewolf") and set(choice) == {"type", "target"}
+    if role in ("werewolf", "drunk"):
+        return (kind in (("wolf", "werewolf") if role == "werewolf" else ("drunk",)) and set(choice) == {"type", "target"}
                 and isinstance(choice.get("target"), str)
                 and choice["target"] in {"center_0", "center_1", "center_2"})
     if kind != role:
@@ -90,8 +90,8 @@ def validate_board(board, player_count):
             return False
         if type(count) is not int or count < 0:
             return False
-        # Robber and troublemaker are unique — at most 1 each.
-        if role in ("robber", "troublemaker") and count > 1:
+        # Robber, troublemaker and drunk are unique — at most 1 each.
+        if role in ("robber", "troublemaker", "drunk") and count > 1:
             return False
         total += count
     return total == player_count + 3
@@ -122,8 +122,9 @@ def deal(room):
         p.role = role
         p.choice = {}
         p.vote_target = None
+        p.shot_target = None
         p.save(update_fields=[
-            "role", "choice", "vote_target",
+            "role", "choice", "vote_target", "shot_target",
         ])
 
 
@@ -142,6 +143,8 @@ def _default_choice(player, all_players):
     if role == "troublemaker":
         a, b = random.sample(others, 2)
         return {"type": "troublemaker", "target": a, "target2": b}
+    if role == "drunk":
+        return {"type": "drunk", "target": f"center_{random.randrange(3)}"}
     if role == "werewolf":
         return {"type": "wolf", "target": f"center_{random.randrange(3)}"}
     return {}
@@ -161,7 +164,7 @@ def run_resolver(room):
             p.save(update_fields=["choice"])
 
 
-def final_cards(players):
+def final_cards(players, center=None):
     """Derive final cards from frozen inputs; never persist a second copy."""
     players = list(players)
     cards = {p.userid: p.role for p in players}
@@ -173,4 +176,26 @@ def final_cards(players):
         if p.role == "troublemaker":
             a, b = p.choice["target"], p.choice["target2"]
             cards[a], cards[b] = cards[b], cards[a]
+    center = list(center if center is not None else players[0].room.center if players else [])
+    for p in players:
+        if p.role == "drunk":
+            i = int(p.choice["target"].split("_")[1])
+            cards[p.userid], center[i] = center[i], cards[p.userid]
     return cards
+
+
+def voted_executions(players):
+    """All players tied for the highest positive vote count are executed."""
+    counts = {}
+    for p in players:
+        if p.vote_target:
+            counts[p.vote_target] = counts.get(p.vote_target, 0) + 1
+    highest = max(counts.values(), default=0)
+    return [uid for uid, count in counts.items() if count == highest]
+
+
+def shooting_hunters(room):
+    players = list(room.players.order_by("id"))
+    cards = final_cards(players, room.center)
+    executed = set(voted_executions(players))
+    return [p for p in players if p.userid in executed and cards[p.userid] == "hunter"]

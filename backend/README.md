@@ -11,9 +11,9 @@ uv run python manage.py runserver
 
 Set the local secret and `OPS_DURATION` in `onw_backend/config.py`.
 
-The development schema has one initial migration. Old development databases
-must be deleted and recreated when switching to this schema; no historical
-migration compatibility is maintained.
+Apply schema updates with `uv run python manage.py migrate`. The hunter
+shooting phase adds a nullable `shot_target` field; existing games retain
+their original roles and votes.
 
 From the repository root, run the checks with:
 

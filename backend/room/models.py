@@ -8,6 +8,7 @@ class Room(models.Model):
         ("waiting", "waiting"),
         ("op", "op"),        # phase 1: everyone acts (no results shown)
         ("reveal", "reveal"),  # phase 2: reveal + one vote each
+        ("shoot", "shoot"),
         ("result", "result"),  # phase 3: everyone voted, final reveal
     ]
 
@@ -18,7 +19,7 @@ class Room(models.Model):
     )
     # Board = {role_code: count}; DB is the only source of truth.
     board = models.JSONField(default=dict)
-    # 3 center cards' role codes (set at start_game; never swapped in our variant).
+    # Original center cards; final swaps are derived from frozen choices.
     center = models.JSONField(default=list)
     op_start_time = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -38,6 +39,8 @@ class Player(models.Model):
     choice = models.JSONField(default=dict)
     # NULL = not voted; "" = abstain; otherwise the selected player.
     vote_target = models.CharField(max_length=7, null=True, default=None)
+
+    shot_target = models.CharField(max_length=7, null=True, default=None)
 
     class Meta:
         unique_together = (("room", "userid"),)

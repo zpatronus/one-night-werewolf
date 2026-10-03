@@ -109,9 +109,9 @@ function cardsLeft() {
 }
 
 // Per-role hard caps enforced in the UI (mirrors the backend board rules):
-// robber and troublemaker are unique — at most 1 each. Other roles are bounded
+// robber, troublemaker and drunk are unique — at most 1 each. Other roles are bounded
 // only by the total player+center card count (cardsLeft).
-const maxFor = (role) => (role === 'robber' || role === 'troublemaker') ? 1 : Number.MAX_SAFE_INTEGER
+const maxFor = (role) => (['robber', 'troublemaker', 'drunk'].includes(role)) ? 1 : Number.MAX_SAFE_INTEGER
 
 function atMax(role) {
   return (board.value?.[role] || 0) >= maxFor(role)

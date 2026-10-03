@@ -14,5 +14,6 @@ urlpatterns = [
     path("room_state/", views.room_state, name="room_state"),
     path("reveal/", views.reveal, name="reveal"),
     path("vote/", views.vote, name="vote"),
+    path("hunter_shot/", views.hunter_shot, name="hunter_shot"),
     path("result/", views.result, name="result"),
 ]

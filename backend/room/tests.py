@@ -148,7 +148,7 @@ class GameChecks(TestCase):
             self.call(views.vote, p, target='')
         result = self.call(views.result)
         self.assertEqual(set(result), {'ok', 'phase', 'center', 'players'})
-        self.assertEqual(set(result['players'][0]), {'userid', 'avatar', 'role', 'choice', 'vote_target'})
+        self.assertEqual(set(result['players'][0]), {'userid', 'avatar', 'role', 'choice', 'vote_target', 'shot_target'})
         self.assertEqual(result['players'][0]['vote_target'], '')
         for p in result['players']:
             self.assertNotIn('peeked', p['choice'])
@@ -212,7 +212,7 @@ class GameChecks(TestCase):
         self.assertTrue(response['ok'])
         board = Room.objects.get(roomid='New').board
         self.assertEqual(board, dict(werewolf=2, villager=2, minion=1,
-            seer=1, robber=1, troublemaker=1, insomniac=1))
+            seer=1, robber=1, troublemaker=1, insomniac=1, drunk=0, hunter=0))
 
     def test_full_room_rejects_new_players_but_allows_login(self):
         self.room.phase='waiting'; self.room.save()
@@ -359,3 +359,55 @@ class GameChecks(TestCase):
             self.assertEqual(self.call(views.join_room, self.players[1], avatar=other)['avatar'], avatar)
             self.players[1].refresh_from_db()
             self.assertEqual(self.players[1].avatar, avatar)
+
+
+class NewRoleChecks(TestCase):
+    setUp = GameChecks.setUp
+    call = GameChecks.call
+    def test_new_role_caps(self):
+        self.assertTrue(game.validate_board({"hunter": 5, "drunk": 1}, 3))
+        self.assertFalse(game.validate_board({"hunter": 4, "drunk": 2}, 3))
+
+    def test_drunk_acts_after_troublemaker_and_keeps_identity_secret(self):
+        roles = ["drunk", "troublemaker", "insomniac"]
+        choices = [{"type": "drunk", "target": "center_0"}, {"type": "troublemaker", "target": "A", "target2": "C"}, {}]
+        for p, role, choice in zip(self.players, roles, choices):
+            p.role, p.choice = role, choice
+            p.save()
+        self.room.center = ["hunter", "werewolf", "villager"]
+        self.room.phase = "reveal"
+        self.room.save()
+        self.assertEqual(game.final_cards(self.room.players.all()), {"A": "hunter", "B": "troublemaker", "C": "drunk"})
+        self.assertEqual(self.call(views.reveal, self.players[0])["info"], {"target": "center_0"})
+        self.assertEqual(self.call(views.reveal, self.players[2])["info"], {"final_role": "drunk"})
+        self.assertEqual(self.room.center[0], "hunter")
+
+    def test_hunter_shot_does_not_chain(self):
+        self.room.phase = "reveal"; self.room.save()
+        for p, role, vote in zip(self.players, ["hunter", "hunter", "werewolf"], ["C", "A", "A"]):
+            p.role, p.vote_target = role, vote; p.save()
+        state = self.call(views.room_state)
+        self.assertEqual(state["phase"], "shoot")
+        self.assertEqual(state["hunters"], ["A"])
+        self.assertNotIn("role", state)
+        self.assertEqual(self.call(views.hunter_shot, self.players[1], target="C")["error"], "not_hunter")
+        self.assertEqual(self.call(views.hunter_shot, target="A")["error"], "bad_target")
+        self.assertEqual(self.call(views.hunter_shot, target="B")["phase"], "result")
+        self.assertEqual(self.call(views.hunter_shot, self.players[1], target="C")["error"], "not_in_shoot")
+
+    def test_tied_hunters_each_shoot_once(self):
+        self.room.phase = "reveal"; self.room.save()
+        for p, role, vote in zip(self.players, ["hunter", "hunter", "werewolf"], ["B", "A", ""]):
+            p.role, p.vote_target = role, vote; p.save()
+        state = self.call(views.room_state)
+        self.assertEqual(state["hunters"], ["A", "B"])
+        self.assertEqual(self.call(views.hunter_shot, target="B")["phase"], "shoot")
+        self.assertEqual(self.call(views.hunter_shot, target="C")["error"], "already_shot")
+        self.assertEqual(self.call(views.hunter_shot, self.players[1], target="C")["phase"], "result")
+
+    def test_hunter_eligibility_uses_swapped_final_role(self):
+        self.room.phase = "reveal"; self.room.save()
+        for p, role, vote, choice in zip(self.players, ["robber", "hunter", "werewolf"], ["B", "A", "A"], [{"type": "robber", "target": "B"}, {}, {}]):
+            p.role, p.vote_target, p.choice = role, vote, choice; p.save()
+        self.assertEqual(self.call(views.room_state)["hunters"], ["A"])
+        self.assertEqual(self.call(views.hunter_shot, target="")["phase"], "result")

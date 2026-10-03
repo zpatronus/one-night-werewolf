@@ -14,7 +14,7 @@ const router = useRouter()
 const nextId = nextRoomId(creds().roomid)
 const nextBusy = ref(false)
 const nextMessage = ref('')
-const phaseRoute = { waiting: '/waitingroom', op: '/ops', reveal: '/discussion', result: '/result' }
+const phaseRoute = { waiting: '/waitingroom', op: '/ops', reveal: '/discussion', shoot: '/shoot', result: '/result' }
 let active = true
 onUnmounted(() => { active = false })
 
@@ -90,6 +90,8 @@ function opSentence(op) {
       return `🥷 强盗 ${op.robber} 偷取 ${op.target} → ${op.robber} 现持 ${peek(op.robber_new)}，${op.target} 现持 ${peek(op.target_new)}`
     case 'troublemaker':
       return `🃏 捣蛋鬼 ${op.troublemaker || '（玩家未知）'} 交换 ${op.a} 与 ${op.b} → ${op.a} 现持 ${peek(op.a_new)}，${op.b} 现持 ${peek(op.b_new)}`
+    case 'drunk':
+      return `🍺 酒鬼 ${op.drunk} 与中央第 ${op.center + 1} 张牌交换 → 最终为 ${peek(op.card)}（当时不知道）`
     case 'insomniac':
       return `🌙 失眠者 ${op.insomniac || ''} 确认自己是 ${peek(op.card)}`
     default:
@@ -119,8 +121,9 @@ const voteChart = computed(() => {
       <p class="result-reason">{{ verdictText(data.reason) }}</p>
       <div class="execution-note">
         <span>处决结果</span>
-        <strong>{{ data.executed || '无人被处决' }}</strong>
+        <strong>{{ data.executions.join('、') || '无人被处决' }}</strong>
       </div>
+      <p v-for="shot in data.shots" :key="shot.hunter" class="result-reason">猎人 {{ shot.hunter }} 开枪带走 {{ shot.target }}</p>
       <div v-if="me" class="personal-result">
         <img :src="avatarUrl(me.avatar)" :alt="me.userid" />
         <div class="personal-identity">

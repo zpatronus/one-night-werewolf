@@ -6,7 +6,7 @@ import { creds } from './store'
 // One polling loop for every in-room phase view. POSTs /room_state every 2s
 // (credentials in body) and, when ``phase`` changes, routes to the right view.
 // Also exposes the raw latest snapshot for the view to render.
-const PHASE_ROUTE = { waiting: '/waitingroom', op: '/ops', reveal: '/discussion', result: '/result' }
+const PHASE_ROUTE = { waiting: '/waitingroom', op: '/ops', reveal: '/discussion', shoot: '/shoot', result: '/result' }
 const INTERVAL = 2000
 
 export function useRoomState(onState = null, phaseRoutes = PHASE_ROUTE) {
