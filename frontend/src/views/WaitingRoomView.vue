@@ -5,7 +5,7 @@ import { post } from '../api'
 import { base, creds } from '../store'
 import { useRoomState } from '../useRoomState'
 import { errorText, boardTemplate, roleName, roleIcon, ROLE_ORDER } from '../gameConfig'
-import { avatarUrl } from '../avatar'
+import { avatarUrl, setMyAvatar } from '../avatar'
 import { sortPlayers } from '../playerOrder'
 import AvatarField from './AvatarField.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -88,6 +88,11 @@ async function saveAvatar(avatar) {
   try {
     const res = await post('set_avatar', { ...creds(), avatar })
     if (!res.ok) { err.value = errorText(res.error); return }
+    // Keep the local default in sync only after the server accepts the change.
+    // Waiting room identity remains server-driven, while RoomEntry restores this
+    // value from localStorage the next time the player joins.
+    const savedAvatar = res.users?.find(u => u.userid === creds().userid)?.avatar || avatar
+    setMyAvatar(savedAvatar)
     if (state.value?.phase === 'waiting') {
       applyState({ ...state.value, users: res.users, ok: true })
     }
