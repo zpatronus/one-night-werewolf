@@ -1,4 +1,5 @@
 <script setup>
+import NightInfoPanel from '../components/NightInfoPanel.vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { post } from '../api'
@@ -244,30 +245,8 @@ async function vote() {
       </details>
     </section>
 
-    <section v-if="!props.infoOnly" class="container discussion-private">
-      <div class="section-heading">
-        <div><span class="night-label">仅自己可见</span><h2>我的夜间信息</h2></div>
-        <button type="button" class="toggle-role" :aria-expanded="showRole" aria-controls="private-information" @click="showRole = !showRole">
-          {{ showRole ? '隐藏信息' : '查看信息' }}
-        </button>
-      </div>
-      <div v-if="showRole" id="private-information">
-        <div class="night-identity">
-          <RoleCard :roomid="creds().roomid" :userid="creds().userid" :role="me.role" eager class="night-role-art" />
-          <div><span class="night-label">你的初始身份</span><h2>{{ roleName(me.role) }}</h2></div>
-        </div>
-        <div class="night-observation">
-          <p>{{ describe() }}</p>
-          <div v-if="revealedCards.length" class="revealed-cards">
-          <figure v-for="(card, index) in revealedCards" :key="index">
-            <figcaption>{{ card.label }}</figcaption>
-            <RoleCard :roomid="creds().roomid" :userid="creds().userid" :role="card.role" eager />
-          </figure>
-        </div>
-        </div>
-      </div>
-      <p v-else class="private-hidden">信息已收起，需要时可随时回看。</p>
-    </section>
+    <NightInfoPanel v-if="!props.infoOnly" v-model:expanded="showRole" :role="me.role"
+      :description="describe()" :cards="revealedCards" :roomid="creds().roomid" :userid="creds().userid" />
 
     <section v-if="!props.infoOnly" class="container discussion-vote">
       <div class="section-heading">

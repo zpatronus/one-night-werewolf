@@ -8,6 +8,7 @@ import { avatarUrl } from '../avatar'
 import { sortPlayers } from '../playerOrder'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import RoleCard from '../components/RoleCard.vue'
+import NightInfoPanel from '../components/NightInfoPanel.vue'
 
 const { state, error, applyState } = useRoomState()
 const target = ref(null)
@@ -84,21 +85,8 @@ async function shoot() {
       </div>
     </section>
 
-    <section class="container hunter-information">
-      <button type="button" class="night-heading" :aria-expanded="showNight" aria-controls="shoot-night-info" @click="showNight = !showNight">
-        <span><strong>你的夜间信息</strong><small>回顾身份与行动线索</small></span><span>{{ showNight ? '收起' : '展开' }}</span>
-      </button>
-      <div v-if="showNight" id="shoot-night-info" class="night-body">
-        <div class="night-identity">
-          <RoleCard :role="state.night?.role" :roomid="creds().roomid" :userid="creds().userid" class="night-thumbnail" />
-          <div><span class="info-label">你的初始身份</span><strong class="night-role">{{ roleIcon(state.night?.role) }} {{ roleName(state.night?.role) }}</strong><span class="private-badge">仅供自己查看</span></div>
-        </div>
-        <div class="night-clue"><span class="info-label">夜间行动与信息</span><p>{{ nightText }}</p></div>
-        <div v-if="knownCards.length" class="known-cards">
-          <div v-for="(card, i) in knownCards" :key="i" class="known-card"><span>{{ card.label }}</span><strong>{{ roleIcon(card.role) }} {{ roleName(card.role) }}</strong></div>
-        </div>
-      </div>
-    </section>
+    <NightInfoPanel v-model:expanded="showNight" :role="state.night?.role" :description="nightText"
+      :cards="knownCards" :roomid="creds().roomid" :userid="creds().userid" panel-id="shoot-night-info" />
 
     <section class="container hunter-information">
       <div class="action-heading"><h2>投票结果</h2><span>全部投票已锁定</span></div>
@@ -166,21 +154,6 @@ async function shoot() {
 
 <style scoped>
 .hunter-information { padding: 22px; }
-.night-heading { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0; margin: 0; border: 0; background: none; text-align: left; }
-.night-heading > span:first-child { display: flex; flex-direction: column; gap: 6px; }
-.night-heading strong { font-size: 1rem; }
-.night-heading small, .night-heading > span:last-child, .info-label { color: var(--text-dim); font-size: .7rem; }
-.night-body { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); }
-.night-identity { display: flex; align-items: center; gap: 14px; }
-.night-thumbnail { width: 42%; flex-shrink: 0; }
-.night-role { display: block; margin: 6px 0 8px; color: var(--accent-hover); font-size: 1rem; }
-.private-badge { display: inline-block; padding: 4px 7px; border: 1px solid var(--border); border-radius: 5px; color: var(--text-faint); font-size: .6rem; }
-.night-clue { margin-top: 18px; padding: 14px; background: var(--surface-2); border: 1px solid var(--border); border-left: 2px solid var(--accent); border-radius: 4px 10px 10px 4px; }
-.night-body p { margin: 7px 0 0; color: var(--text); font-size: .8rem; line-height: 1.9; }
-.known-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-top: 10px; }
-.known-card { padding: 12px; border: 1px solid rgba(229, 189, 84, .18); border-radius: 10px; background: rgba(229, 189, 84, .04); }
-.known-card span { display: block; color: var(--text-dim); font-size: .65rem; margin-bottom: 7px; }
-.known-card strong { color: var(--accent-hover); font-size: .82rem; }
 .vote-outcome { margin: 18px 0 20px; padding: 15px; border: 1px solid rgba(229, 189, 84, .25); border-radius: 12px; background: linear-gradient(135deg, rgba(229, 189, 84, .08), transparent); }
 .outcome-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .outcome-heading > span { color: var(--accent-hover); font-size: .72rem; }
