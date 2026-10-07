@@ -417,3 +417,47 @@ class NewRoleChecks(TestCase):
         self.assertEqual(self.call(views.room_state)["hunters"], ["A"])
         self.assertEqual(self.call(views.hunter_shot, target="")["error"], "bad_target")
         self.assertEqual(self.call(views.hunter_shot, target="C")["phase"], "result")
+
+
+    def _voted_room(self, roles, votes):
+        self.room.phase = "reveal"
+        self.room.save()
+        for p, role, vote in zip(self.players, roles, votes):
+            p.role, p.vote_target = role, vote
+            p.choice = {"type": "wolf", "target": "center_0"} if role == "werewolf" else {}
+            p.save()
+
+    def test_all_good_with_votes_skips_hunters(self):
+        self._voted_room(["hunter", "villager", "villager"], ["B", "A", "A"])
+        self.assertEqual(self.call(views.room_state)["phase"], "result")
+        self.assertEqual(self.call(views.hunter_shot, target="B")["error"], "not_in_shoot")
+
+    def test_executed_wolf_skips_tied_hunter(self):
+        self._voted_room(["hunter", "villager", "werewolf"], ["C", "A", ""])
+        self.assertEqual(self.call(views.room_state)["phase"], "result")
+
+    def test_everyone_tied_skips_hunter(self):
+        self._voted_room(["hunter", "villager", "werewolf"], ["B", "C", "A"])
+        self.assertEqual(self.call(views.room_state)["phase"], "result")
+
+    def test_minion_fallback_can_change_result(self):
+        self._voted_room(["hunter", "villager", "minion"], ["B", "A", "A"])
+        self.assertEqual(self.call(views.room_state)["phase"], "shoot")
+        self.assertEqual(self.call(views.hunter_shot, target="C")["phase"], "result")
+
+    def test_executed_minion_without_wolves_skips_hunter(self):
+        self._voted_room(["hunter", "villager", "minion"], ["C", "A", ""])
+        self.assertEqual(self.call(views.room_state)["phase"], "result")
+
+    def test_successful_first_shot_skips_remaining_tied_hunter(self):
+        self._voted_room(["hunter", "hunter", "werewolf"], ["B", "A", ""])
+        self.assertEqual(self.call(views.room_state)["phase"], "shoot")
+        self.assertEqual(self.call(views.hunter_shot, target="C")["phase"], "result")
+        self.assertEqual(self.call(views.hunter_shot, self.players[1], target="A")["error"], "not_in_shoot")
+        self.players[1].refresh_from_db()
+        self.assertIsNone(self.players[1].shot_target)
+
+    def test_executed_minion_does_not_fix_result_with_living_wolf(self):
+        self._voted_room(["hunter", "minion", "werewolf"], ["B", "A", ""])
+        self.assertEqual(self.call(views.room_state)["phase"], "shoot")
+        self.assertEqual(self.call(views.hunter_shot, target="C")["phase"], "result")

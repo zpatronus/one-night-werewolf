@@ -72,12 +72,12 @@ async function shoot() {
       <template v-if="state.can_shoot">
         <RoleCard role="hunter" :roomid="creds().roomid" :userid="creds().userid" eager class="hunter-art" />
         <h1>你的最终身份是猎人</h1>
-        <p class="hero-copy">你被投票处决了，现在必须开枪带走一名玩家。<br>这是你的最后一次行动。</p>
+        <p class="hero-copy">你被投票处决了，现在必须开枪带走一名玩家。<br>这一枪仍可能改变本局胜负。</p>
       </template>
       <template v-else>
         <div class="hunter-emblem" aria-hidden="true">⌖</div>
         <h1>等待猎人最后一枪</h1>
-        <p class="hero-copy">投票已结束，被处决的猎人正在选择目标。<br>行动完成后，将揭晓所有身份与本局结果。</p>
+        <p class="hero-copy">投票已结束，被处决的猎人正在选择目标。<br>胜负确定后，将揭晓所有身份与本局结果。</p>
       </template>
       <div class="execution-summary">
         <span>投票处决</span>
@@ -132,15 +132,15 @@ async function shoot() {
       <button type="button" class="btn-primary btn-block" :disabled="busy || target === null" @click="confirmOpen = true">
         {{ busy ? '提交中…' : target ? '确认开枪' : '请先选择' }}
       </button>
-      <p class="action-footnote">提交后无法修改。枪击猎人不会触发再次开枪。</p>
+      <p class="action-footnote">提交后无法修改。胜负已定即进入结算，枪击猎人不连锁。</p>
     </section>
 
     <section v-else class="container hunter-wait" role="status" aria-live="polite">
       <span class="wait-mark" aria-hidden="true">{{ state.can_shoot ? '✓' : '☾' }}</span>
       <div>
         <h2>{{ state.can_shoot ? '你的行动已完成' : '等待猎人完成行动' }}</h2>
-        <p v-if="state.can_shoot">你已开枪带走 {{ state.shot_target }}。等待其他猎人完成选择后，自动进入结算。</p>
-        <p v-else>无需操作，行动完成后自动进入结算。</p>
+        <p v-if="state.can_shoot">你已开枪带走 {{ state.shot_target }}。若其他猎人仍能改变胜负，将继续行动；胜负确定后自动进入结算。</p>
+        <p v-else>无需操作，胜负确定后自动进入结算。</p>
       </div>
     </section>
     <p v-if="err || error" class="container error" role="alert">{{ err || errorText(error) }}</p>

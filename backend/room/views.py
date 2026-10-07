@@ -183,11 +183,11 @@ def _advance(room):
     if room.phase == "reveal":
         players = list(room.players.all())
         if players and all(p.vote_target is not None for p in players):
-            Room.objects.filter(id=room.id, phase="reveal").update(phase="shoot" if game.shooting_hunters(room) else "result")
+            Room.objects.filter(id=room.id, phase="reveal").update(phase="shoot" if game.shooting_needed(room) else "result")
             room.refresh_from_db()
 
     if room.phase == "shoot":
-        if all(p.shot_target is not None for p in game.shooting_hunters(room)):
+        if not game.shooting_needed(room):
             Room.objects.filter(id=room.id, phase="shoot").update(phase="result")
             room.refresh_from_db()
 
@@ -535,6 +535,7 @@ def hunter_shot(request):
         body, room, player = _auth(request)
         with transaction.atomic():
             _lock_room(room)
+            _advance(room)
             if room.phase != "shoot":
                 raise ApiError("not_in_shoot")
             if not any(p.id == player.id for p in game.shooting_hunters(room)):

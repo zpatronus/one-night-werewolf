@@ -199,3 +199,24 @@ def shooting_hunters(room):
     cards = final_cards(players, room.center)
     executed = set(voted_executions(players))
     return [p for p in players if p.userid in executed and cards[p.userid] == "hunter"]
+
+
+def shooting_needed(room):
+    """A remaining vote-executed hunter can still change the winning faction.
+
+    Killing a wolf wins for good; without wolves, killing a minion does.
+    With no evil players the vote already fixes the outcome. Only original
+    vote executions grant shots, so gunshot victims never create a chain.
+    """
+    players = list(room.players.order_by("id"))
+    cards = final_cards(players, room.center)
+    roles = set(cards.values())
+    enemy = "werewolf" if "werewolf" in roles else "minion" if "minion" in roles else None
+    if enemy is None:
+        return False
+    executed = set(voted_executions(players))
+    hunters = [p for p in players if p.userid in executed and cards[p.userid] == "hunter"]
+    executed.update(p.shot_target for p in hunters if p.shot_target)
+    if any(cards[uid] == enemy for uid in executed):
+        return False
+    return any(p.shot_target is None for p in hunters)

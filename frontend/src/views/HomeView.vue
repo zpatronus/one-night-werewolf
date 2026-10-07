@@ -28,7 +28,7 @@ import RoleCard from '../components/RoleCard.vue'
             <div><dt><RoleCard role="robber" /><span>强盗</span></dt><dd>与一名其他玩家交换身份牌，并查看自己刚换到的牌。</dd></div>
             <div><dt><RoleCard role="troublemaker" /><span>捣蛋鬼</span></dt><dd>在强盗之后，交换另外两名玩家的牌，不能换自己，也不能查看被换的牌。</dd></div>
             <div><dt><RoleCard role="drunk" /><span>酒鬼</span></dt><dd>每局最多一张。在捣蛋鬼之后、失眠者之前，与一张中央牌交换，不查看新身份。</dd></div>
-            <div><dt><RoleCard role="hunter" /><span>猎人</span></dt><dd>数量不限。按最终身份发动：被投票处决（包括平票）时，必须开枪带走一人；被枪击不会触发开枪。</dd></div>
+            <div><dt><RoleCard role="hunter" /><span>猎人</span></dt><dd>数量不限。按最终身份发动：被投票处决（包括平票）且开枪仍可能改变胜负时，必须开枪带走一人；胜负已定则跳过，被枪击不会触发开枪。</dd></div>
             <div><dt><RoleCard role="insomniac" /><span>失眠者</span></dt><dd>在所有换牌结束后，查看自己的最终身份。</dd></div>
             <div><dt><RoleCard role="villager" /><span>村民</span></dt><dd>没有夜间能力，靠讨论与推理判断身份。</dd></div>
           </dl>
@@ -44,7 +44,7 @@ import RoleCard from '../components/RoleCard.vue'
         <section class="rule-block">
           <h2>讨论与投票</h2>
           <p>夜晚结束后，玩家根据各自的夜间信息展开讨论，推理每个人最终持有的身份。讨论中可以说真话、隐瞒或撒谎，但不能翻看或展示身份牌来证明自己的说法。</p>
-          <p>每人投一名其他玩家或弃权，不能投自己，投出后不可更改。只投一轮。若有猎人被投票处决，先完成开枪选择，再揭开所有身份并判断胜负。</p>
+          <p>每人投一名其他玩家或弃权，不能投自己，投出后不可更改。只投一轮。若被投票处决的猎人仍可能通过开枪改变胜负，先进行开枪；一旦胜负已定，立即进入结算。</p>
         </section>
         <section class="rule-block">
           <h2>胜负判定</h2>
@@ -150,7 +150,7 @@ import RoleCard from '../components/RoleCard.vue'
     <div class="container">
       <div class="subtitle">更新日志</div>
       <p>
-        <b>v1.4.0（2026-10-03）：</b>新增酒鬼（每局最多一张，捣蛋鬼后、失眠者前盲换中央牌）与猎人（数量不限，被投票处决含平票时必须开枪，不连锁）；新增猎人开枪页及两角色各三款插画，更新规则、回放与胜负结算；修复更换头像后本地默认头像的同步。
+        <b>v1.4.0（2026-10-03）：</b>新增酒鬼（每局最多一张，捣蛋鬼后、失眠者前盲换中央牌）与猎人（数量不限，被投票处决含平票且仍能影响胜负时必须开枪，不连锁）；新增猎人开枪页及两角色各三款插画，更新规则、回放与胜负结算；修复更换头像后本地默认头像的同步。
       </p>
       <p>
         <b>v1.3.0（2026-09-19）：</b>合并创建与加入房间入口，修复邀请链接刷新后重复填入房间号；等待室板子修改自动保存，支持更换头像并在开局后锁定；夜间操作与信息默认收起，支持随时展开；新增多款角色插画，压缩并缓存图片；优化各页面布局与流程说明。
