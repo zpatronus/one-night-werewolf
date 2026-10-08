@@ -543,6 +543,8 @@ def hunter_shot(request):
             target = body.get("target")
             if not isinstance(target, str) or target == player.userid:
                 raise ApiError("bad_target")
+            if target in game.voted_executions(room.players.all()):
+                raise ApiError("bad_target")
             if not target or not room.players.filter(userid=target).exists():
                 raise ApiError("bad_target")
             updated = Player.objects.filter(id=player.id, room__phase="shoot", shot_target__isnull=True).update(shot_target=target)

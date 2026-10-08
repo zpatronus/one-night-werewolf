@@ -54,7 +54,7 @@ const nightText = computed(() => {
 })
 const done = computed(() => state.value?.shot_target !== null && state.value?.shot_target !== undefined)
 async function shoot() {
-  if (busy.value || done.value || !state.value?.can_shoot || !target.value) return
+  if (busy.value || done.value || !state.value?.can_shoot || !target.value || state.value.executed.includes(target.value)) return
   err.value = ''
   confirmOpen.value = false
   busy.value = true
@@ -115,13 +115,13 @@ async function shoot() {
 
     <section v-if="state.can_shoot && !done" class="container hunter-action">
       <div class="action-heading"><h2>选择开枪目标</h2><span>必须选择一人</span></div>
-      <p class="action-copy">被选中的玩家将加入处决名单。请根据讨论与线索作出选择。</p>
+      <p class="action-copy">被选中的玩家将加入处决名单。已被投票处决的玩家不可选择。</p>
       <div class="shot-grid">
         <button v-for="u in users" :key="u.userid" type="button" class="shot-player"
           :class="{ selected: target === u.userid }" :aria-pressed="target === u.userid"
-          :disabled="busy" @click="target = u.userid">
+          :disabled="busy || state.executed.includes(u.userid)" @click="target = u.userid">
           <img :src="avatarUrl(u.avatar)" alt="" />
-          <span class="player-copy"><strong>{{ u.userid }}</strong><span>{{ state.executed.includes(u.userid) ? '已被投票处决' : '可选择为目标' }}</span></span>
+          <span class="player-copy"><strong>{{ u.userid }}</strong><span>{{ state.executed.includes(u.userid) ? '已处决 · 不可选择' : '可选择为目标' }}</span></span>
           <span class="pick-mark" aria-hidden="true">{{ target === u.userid ? '✓' : '○' }}</span>
         </button>
       </div>
@@ -204,6 +204,7 @@ async function shoot() {
 .action-copy { margin: 10px 0 18px; color: var(--text-dim); font-size: .78rem; line-height: 1.8; }
 .shot-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
 .shot-player { position: relative; display: flex; align-items: center; gap: 8px; min-width: 0; margin: 0; padding: 16px 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); text-align: left; }
+.shot-player:disabled { opacity: .45; cursor: not-allowed; }
 .shot-player img { width: 36px; height: 36px; flex-shrink: 0; border-radius: 50%; object-fit: cover; }
 .player-copy { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .player-copy strong { font-size: .8rem; overflow-wrap: anywhere; }

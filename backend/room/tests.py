@@ -401,12 +401,16 @@ class NewRoleChecks(TestCase):
         self.assertEqual(self.call(views.hunter_shot, self.players[1], target="C")["error"], "not_in_shoot")
 
     def test_tied_hunters_each_shoot_once(self):
+        Player.objects.create(room=self.room, userid="D", userpsw="pw", role="villager", vote_target="")
         self.room.phase = "reveal"; self.room.save()
         for p, role, vote in zip(self.players, ["hunter", "hunter", "werewolf"], ["B", "A", ""]):
             p.role, p.vote_target = role, vote; p.save()
         state = self.call(views.room_state)
         self.assertEqual(state["hunters"], ["A", "B"])
-        self.assertEqual(self.call(views.hunter_shot, target="B")["phase"], "shoot")
+        self.assertEqual(self.call(views.hunter_shot, target="B")["error"], "bad_target")
+        self.players[0].refresh_from_db()
+        self.assertIsNone(self.players[0].shot_target)
+        self.assertEqual(self.call(views.hunter_shot, target="D")["phase"], "shoot")
         self.assertEqual(self.call(views.hunter_shot, target="C")["error"], "already_shot")
         self.assertEqual(self.call(views.hunter_shot, self.players[1], target="C")["phase"], "result")
 
